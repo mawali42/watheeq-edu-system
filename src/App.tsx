@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, BarChart3, TreePine } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, BarChart3, TreePine, Download, PieChart } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +57,25 @@ const startAnalysis = async () => {
 // Reset for a new analysis
 const resetAnalysis = () => {setShowResults(false);setIsAnalyzing(false);setAnalysisData(null);setErrorData(null);setSelectedFiles([]);if (fileInputRef.current) {fileInputRef.current.value = '';}};
 
+const exportReportPDF = async () => {
+  const element = document.getElementById('app-content-to-export');
+  if (!element) return;
+
+  const html2pdf = (await import('html2pdf.js')).default;
+  const subject = analysisData?.statistics?.subjectName || 'تقرير-وثيق';
+
+  await html2pdf()
+    .set({
+      margin: 0.25,
+      filename: `${subject}-تحليل-وثيق.pdf`,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0f172a' },
+      jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
+    })
+    .from(element)
+    .save();
+};
+
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
 
   {/* Background Dots */}
@@ -84,6 +103,14 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               <p className="text-[10px] text-slate-500 opacity-80 uppercase tracking-widest mt-1">Strategic Educational Analysis v4.2</p>
            </div>
            <div className="flex items-center gap-2 print:hidden">
+             <button
+                onClick={exportReportPDF}
+                className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                title="تصدير التقرير PDF"
+             >
+                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline font-medium text-sm">تصدير PDF</span>
+             </button>
              <button 
                 onClick={resetAnalysis}
                 className="bg-blue-500/20 border border-blue-500/50 hover:bg-blue-500 hover:text-white text-blue-400 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
@@ -296,6 +323,35 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {analysisData?.charts?.gradeDistribution?.length > 0 && (
+                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg">
+                  <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-cyan-300 flex items-center gap-2">
+                    <PieChart className="w-4 h-4" /> مخطط توزيع مستويات الأداء
+                  </h2>
+                  <div className="space-y-3">
+                    {analysisData.charts.gradeDistribution.map((item: any, i: number) => {
+                      const value = Number(item.value || item.percentage || 0);
+                      return (
+                        <div key={i}>
+                          <div className="flex justify-between text-xs mb-1 text-slate-300">
+                            <span>{item.label || item.level || `مستوى ${i + 1}`}</span>
+                            <span>{value}%</span>
+                          </div>
+                          <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                            <motion.div
+                              initial={{ width: 0 }}
+                              animate={{ width: `${Math.min(value, 100)}%` }}
+                              transition={{ duration: 0.8, delay: i * 0.08 }}
+                              className="h-full bg-gradient-to-r from-cyan-500 to-blue-400 rounded-full"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -528,6 +584,20 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                           <p className="font-bold mb-1">نصيحة استراتيجية</p>
                           <p className="text-xs">{analysisData.strategicAdvice}</p>
                         </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisData?.interventionPlan?.length > 0 && (
+                    <div className="mt-6 pt-4 border-t border-white/10">
+                      <p className="text-sm font-bold text-emerald-300 mb-3">خطة علاجية مقترحة</p>
+                      <div className="space-y-2">
+                        {analysisData.interventionPlan.map((step: any, i: number) => (
+                          <div key={i} className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                            <p className="text-xs font-bold text-emerald-300 mb-1">{step.title || `إجراء ${i + 1}`}</p>
+                            <p className="text-xs text-slate-300 leading-relaxed">{step.action || step.description || step}</p>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
