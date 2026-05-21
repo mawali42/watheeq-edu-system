@@ -52,30 +52,6 @@ const startAnalysis = async () => {
     setIsAnalyzing(false);
   }
 };
-const formData = new FormData();
-selectedFiles.forEach(file => formData.append("files", file));
-
-try {
-  const response = await fetch("/api/analyze", {
-    method: "POST",
-    body: formData,
-  });
-  
-  const data = await response.json();
-  
-  if (!response.ok) {
-    throw new Error(data.error || "حدثت مشكلة في التحليل");
-  }
-  
-  setAnalysisData(data);
-  setShowResults(true);
-} catch (err: any) {
-  setErrorData(err.message);
-} finally {
-  setIsAnalyzing(false);
-}
-
-};
 
 // Reset for a new analysisconst resetAnalysis = () => {setShowResults(false);setIsAnalyzing(false);setAnalysisData(null);setErrorData(null);setSelectedFiles([]);if (fileInputRef.current) {fileInputRef.current.value = '';}};
 
