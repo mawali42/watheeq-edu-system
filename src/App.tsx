@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, BarChart3, TreePine, Download, PieChart } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
 
-export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const fileInputRef = useRef<HTMLInputElement>(null);
+export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const [isExporting, setIsExporting] = useState(false);const fileInputRef = useRef<HTMLInputElement>(null);
 
 // Handle File Upload interaction
 const handleUploadClick = () => {fileInputRef.current?.click();};
@@ -55,25 +55,77 @@ const startAnalysis = async () => {
 };
 
 // Reset for a new analysis
-const resetAnalysis = () => {setShowResults(false);setIsAnalyzing(false);setAnalysisData(null);setErrorData(null);setSelectedFiles([]);if (fileInputRef.current) {fileInputRef.current.value = '';}};
+const resetAnalysis = () => {
+  setShowResults(false);
+  setIsAnalyzing(false);
+  setAnalysisData(null);
+  setErrorData(null);
+  setSelectedFiles([]);
+  setIsDragging(false);
+
+  if (fileInputRef.current) {
+    fileInputRef.current.value = "";
+  }
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
 
 const exportReportPDF = async () => {
-  const element = document.getElementById('app-content-to-export');
-  if (!element) return;
+  try {
+    setIsExporting(true);
 
-  const html2pdf = (await import('html2pdf.js')).default;
-  const subject = analysisData?.statistics?.subjectName || 'تقرير-وثيق';
+    const element = document.getElementById("app-content-to-export");
+    if (!element) {
+      throw new Error("لم يتم العثور على محتوى التقرير للتصدير");
+    }
 
-  await html2pdf()
-    .set({
-      margin: 0.25,
-      filename: `${subject}-تحليل-وثيق.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#0f172a' },
-      jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' }
-    })
-    .from(element)
-    .save();
+    const html2pdfModule: any = await import("html2pdf.js");
+    const html2pdf = html2pdfModule.default || html2pdfModule;
+
+    const subject = analysisData?.statistics?.subjectName || "تقرير-وثيق";
+    const safeFileName = String(subject).replace(/[\/:*?"<>|]/g, "-");
+
+    const buttons = document.querySelectorAll(".pdf-ignore");
+    buttons.forEach((btn: any) => {
+      btn.style.visibility = "hidden";
+    });
+
+    await html2pdf()
+      .set({
+        margin: 0.25,
+        filename: `${safeFileName}-تحليل-وثيق.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: "#0f172a",
+          scrollX: 0,
+          scrollY: 0,
+        },
+        jsPDF: {
+          unit: "in",
+          format: "a4",
+          orientation: "landscape",
+        },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      })
+      .from(element)
+      .save();
+
+    buttons.forEach((btn: any) => {
+      btn.style.visibility = "";
+    });
+  } catch (err: any) {
+    console.error("PDF Export Error:", err);
+    setErrorData(err?.message || "تعذر تصدير التقرير بصيغة PDF");
+  } finally {
+    setIsExporting(false);
+
+    const buttons = document.querySelectorAll(".pdf-ignore");
+    buttons.forEach((btn: any) => {
+      btn.style.visibility = "";
+    });
+  }
 };
 
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
@@ -102,16 +154,19 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               <p className="text-sm font-medium">التقرير التحليلي {analysisData?.statistics?.subjectName ? ` - ${analysisData.statistics.subjectName}` : ""}</p>
               <p className="text-[10px] text-slate-500 opacity-80 uppercase tracking-widest mt-1">Strategic Educational Analysis v4.2</p>
            </div>
-           <div className="flex items-center gap-2 print:hidden">
+           <div className="flex items-center gap-2 print:hidden pdf-ignore">
              <button
+                type="button"
                 onClick={exportReportPDF}
-                className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
+                disabled={isExporting}
+                className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تصدير التقرير PDF"
              >
-                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline font-medium text-sm">تصدير PDF</span>
+                {isExporting ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
+                <span className="hidden sm:inline font-medium text-sm">{isExporting ? "جاري التصدير..." : "تصدير PDF"}</span>
              </button>
-             <button 
+             <button
+                type="button"
                 onClick={resetAnalysis}
                 className="bg-blue-500/20 border border-blue-500/50 hover:bg-blue-500 hover:text-white text-blue-400 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تحليل جديد"
