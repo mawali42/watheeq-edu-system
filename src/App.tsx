@@ -56,8 +56,9 @@ const formData = new FormData();
 selectedFiles.forEach(file => formData.append("files", file));
 
 try {
-  // التعديل الاستراتيجي الحاسم: توجيه الطلب مباشرة لرابط السيرفر على Vercel لمنع خطأ المسارات النسبي
-  const response = await fetch("https://watheeq-edu-system.vercel.app/api/analyze", {
+  const response = await fetch("/api/analyze", {
+    method: "POST",
+    body: formData,
   });
   
   const data = await response.json();
