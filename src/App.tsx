@@ -21,6 +21,7 @@ const startAnalysis = async () => {
   setErrorData(null);
 
   const formData = new FormData();
+
   selectedFiles.forEach((file) => {
     formData.append("files", file);
   });
@@ -34,14 +35,19 @@ const startAnalysis = async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.error || "حدث خطأ أثناء تحليل الملفات");
+      throw new Error(
+        data?.error || "حدث خطأ أثناء تحليل الملفات"
+      );
     }
 
     setAnalysisData(data);
     setShowResults(true);
   } catch (err: any) {
     console.error("Analysis Error:", err);
-    setErrorData(err?.message || "تعذر الاتصال بخدمة التحليل");
+
+    setErrorData(
+      err?.message || "تعذر الاتصال بخدمة التحليل"
+    );
   } finally {
     setIsAnalyzing(false);
   }
@@ -52,8 +58,6 @@ selectedFiles.forEach(file => formData.append("files", file));
 try {
   // التعديل الاستراتيجي الحاسم: توجيه الطلب مباشرة لرابط السيرفر على Vercel لمنع خطأ المسارات النسبي
   const response = await fetch("https://watheeq-edu-system.vercel.app/api/analyze", {
-    method: "POST",
-    body: formData
   });
   
   const data = await response.json();
