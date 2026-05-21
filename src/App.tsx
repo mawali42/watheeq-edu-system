@@ -67,64 +67,67 @@ const resetAnalysis = () => {
     fileInputRef.current.value = "";
   }
 
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  // إعادة تحميل الصفحة هي الطريقة الأضمن لتنظيف حالة التطبيق بالكامل
+  window.location.reload();
 };
 
 const exportReportPDF = async () => {
-  try {
-    setIsExporting(true);
+  setIsExporting(true);
+  setErrorData(null);
 
+  const buttons = document.querySelectorAll(".pdf-ignore");
+  try {
     const element = document.getElementById("app-content-to-export");
     if (!element) {
       throw new Error("لم يتم العثور على محتوى التقرير للتصدير");
     }
 
-    const html2pdfModule: any = await import("html2pdf.js");
-    const html2pdf = html2pdfModule.default || html2pdfModule;
-
-    const subject = analysisData?.statistics?.subjectName || "تقرير-وثيق";
-    const safeFileName = String(subject).replace(/[\/:*?"<>|]/g, "-");
-
-    const buttons = document.querySelectorAll(".pdf-ignore");
     buttons.forEach((btn: any) => {
       btn.style.visibility = "hidden";
     });
 
-    await html2pdf()
-      .set({
-        margin: 0.25,
-        filename: `${safeFileName}-تحليل-وثيق.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          backgroundColor: "#0f172a",
-          scrollX: 0,
-          scrollY: 0,
-        },
-        jsPDF: {
-          unit: "in",
-          format: "a4",
-          orientation: "landscape",
-        },
-        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-      })
-      .from(element)
-      .save();
+    await new Promise((resolve) => setTimeout(resolve, 250));
 
-    buttons.forEach((btn: any) => {
-      btn.style.visibility = "";
-    });
+    try {
+      const html2pdfModule: any = await import("html2pdf.js");
+      const html2pdf = html2pdfModule.default || html2pdfModule;
+
+      const subject = analysisData?.statistics?.subjectName || "تقرير-وثيق";
+      const safeFileName = String(subject).replace(/[\/:*?"<>|]/g, "-");
+
+      await html2pdf()
+        .set({
+          margin: 0.25,
+          filename: `${safeFileName}-تحليل-وثيق.pdf`,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#0f172a",
+            scrollX: 0,
+            scrollY: 0,
+          },
+          jsPDF: {
+            unit: "in",
+            format: "a4",
+            orientation: "landscape",
+          },
+          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+        })
+        .from(element)
+        .save();
+    } catch (pdfError) {
+      console.warn("html2pdf failed, using browser print instead:", pdfError);
+      window.print();
+    }
   } catch (err: any) {
     console.error("PDF Export Error:", err);
     setErrorData(err?.message || "تعذر تصدير التقرير بصيغة PDF");
   } finally {
-    setIsExporting(false);
-
-    const buttons = document.querySelectorAll(".pdf-ignore");
     buttons.forEach((btn: any) => {
       btn.style.visibility = "";
     });
+    setIsExporting(false);
   }
 };
 
@@ -154,10 +157,11 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               <p className="text-sm font-medium">التقرير التحليلي {analysisData?.statistics?.subjectName ? ` - ${analysisData.statistics.subjectName}` : ""}</p>
               <p className="text-[10px] text-slate-500 opacity-80 uppercase tracking-widest mt-1">Strategic Educational Analysis v4.2</p>
            </div>
-           <div className="flex items-center gap-2 print:hidden pdf-ignore">
+           <div className="flex items-center gap-2 print:hidden pdf-ignore relative z-50 pointer-events-auto">
              <button
                 type="button"
                 onClick={exportReportPDF}
+                onPointerUp={(e) => e.stopPropagation()}
                 disabled={isExporting}
                 className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تصدير التقرير PDF"
@@ -168,6 +172,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
              <button
                 type="button"
                 onClick={resetAnalysis}
+                onPointerUp={(e) => e.stopPropagation()}
                 className="bg-blue-500/20 border border-blue-500/50 hover:bg-blue-500 hover:text-white text-blue-400 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تحليل جديد"
              >
