@@ -25,7 +25,6 @@ const startAnalysis = async () => {
   selectedFiles.forEach((file) => {
     formData.append("files", file);
   });
-
   try {
     const response = await fetch("/api/analyze", {
       method: "POST",
