@@ -1,16 +1,17 @@
-import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, File, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, Network, BarChart3, TreePine } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, BarChart3, TreePine } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
 
-export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const fileInputRef = useRef(null);
+export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const fileInputRef = useRef<HTMLInputElement>(null);
 
-// Handle File Upload interactionconst handleUploadClick = () => {fileInputRef.current?.click();};
+// Handle File Upload interaction
+const handleUploadClick = () => {fileInputRef.current?.click();};
 
-const handleFileChange = (e: React.ChangeEvent) => {if (e.target.files && e.target.files.length > 0) {setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);setErrorData(null);}};
+const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {if (e.target.files && e.target.files.length > 0) {setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);setErrorData(null);}};
 
-const handleDrop = (e: React.DragEvent) => {e.preventDefault();setIsDragging(false);if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);setErrorData(null);}};
+const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {e.preventDefault();setIsDragging(false);if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {setSelectedFiles(prev => [...prev, ...Array.from(e.dataTransfer.files)]);setErrorData(null);}};
 
-const handleDragOver = (e: React.DragEvent) => {e.preventDefault();setIsDragging(true);};
+const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {e.preventDefault();setIsDragging(true);};
 
-const handleDragLeave = (e: React.DragEvent) => {e.preventDefault();setIsDragging(false);};
+const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {e.preventDefault();setIsDragging(false);};
 
 const removeFile = (index: number) => {setSelectedFiles(prev => prev.filter((_, i) => i !== index));if (selectedFiles.length <= 1) {setErrorData(null);}};
 
@@ -25,6 +26,7 @@ const startAnalysis = async () => {
   selectedFiles.forEach((file) => {
     formData.append("files", file);
   });
+
   try {
     const response = await fetch("/api/analyze", {
       method: "POST",
@@ -52,7 +54,8 @@ const startAnalysis = async () => {
   }
 };
 
-// Reset for a new analysisconst resetAnalysis = () => {setShowResults(false);setIsAnalyzing(false);setAnalysisData(null);setErrorData(null);setSelectedFiles([]);if (fileInputRef.current) {fileInputRef.current.value = '';}};
+// Reset for a new analysis
+const resetAnalysis = () => {setShowResults(false);setIsAnalyzing(false);setAnalysisData(null);setErrorData(null);setSelectedFiles([]);if (fileInputRef.current) {fileInputRef.current.value = '';}};
 
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
 
