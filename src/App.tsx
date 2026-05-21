@@ -55,20 +55,25 @@ const startAnalysis = async () => {
 };
 
 // Reset for a new analysis
-const resetAnalysis = () => {
+const resetAnalysis = (e?: React.MouseEvent<HTMLButtonElement>) => {
+  e?.preventDefault();
+  e?.stopPropagation();
+
   setShowResults(false);
   setIsAnalyzing(false);
   setAnalysisData(null);
   setErrorData(null);
   setSelectedFiles([]);
   setIsDragging(false);
+  setIsExporting(false);
 
   if (fileInputRef.current) {
     fileInputRef.current.value = "";
   }
 
-  // إعادة تحميل الصفحة هي الطريقة الأضمن لتنظيف حالة التطبيق بالكامل
-  window.location.reload();
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, 50);
 };
 
 const exportReportPDF = async () => {
@@ -160,8 +165,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
            <div className="flex items-center gap-2 print:hidden pdf-ignore relative z-50 pointer-events-auto">
              <button
                 type="button"
-                onClick={exportReportPDF}
-                onPointerUp={(e) => e.stopPropagation()}
+                onClick={(e) => exportReportPDF(e)}
                 disabled={isExporting}
                 className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تصدير التقرير PDF"
@@ -171,8 +175,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
              </button>
              <button
                 type="button"
-                onClick={resetAnalysis}
-                onPointerUp={(e) => e.stopPropagation()}
+                onClick={(e) => resetAnalysis(e)}
                 className="bg-blue-500/20 border border-blue-500/50 hover:bg-blue-500 hover:text-white text-blue-400 p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تحليل جديد"
              >
