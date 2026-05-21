@@ -5,19 +5,28 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import fs from "fs";
 
-// 1. تعريف الـ app والـ upload في النطاق الخارجي العام (حاسم لـ Vercel)
+// 1️⃣ تعريف المتغيرات في النطاق الخارجي العام (حاسم جداً لـ Vercel)
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 const PORT = 3000;
 
-// 2. مسار الـ API مباشرة في الخارج لكي يراه Vercel فوراً
+// 2️⃣ مسار الـ API نخرجه هنا في النطاق العام لكي يقرأه Vercel مباشرة
 app.post("/api/analyze", upload.array("files"), async (req, res) => {
-    // ... (اترك كل كود التحليل الداخلي المكتوب عندك هنا كما هو دون تغيير) ...
+    try {
+      // ... (ضع كل كود التحليل الداخلي المكتوب عندك هنا بالكامل دون تعديل حرصاً على منطقك التربوي) ...
+      
+      const text = response.text || "{}";
+      const data = JSON.parse(text);
+      res.json(data);
+
+    } catch (e: any) {
+      console.error("Gemini API Error:", e.message);
+      res.status(500).json({ error: e.message || "Failed to analyze" });
+    }
 });
 
-// 3. دالة التشغيل الفرعية للواجهة والنظام المحلي
+// 3️⃣ دالة تشغيل السيرفر المحلي والواجهة (Vite Middleware)
 async function startServer() {
-  // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -32,16 +41,16 @@ async function startServer() {
     });
   }
 
-  // تشغيل الاستماع المحلي فقط إذا لم نكن في بيئة Vercel
+  // لا نجعل السيرفر يستمع للمنفذ إلا في البيئة المحلية فقط
   if (process.env.NODE_ENV !== "production") {
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
-      });
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
   }
 }
 
-// تشغيل الدالة
+// تشغيل الدالة للبيئة المحلية
 startServer();
 
-// التصدير الرسمي لـ Vercel
+// 4️⃣ التصدير القياسي لـ Vercel (مهم جداً)
 export default app;
