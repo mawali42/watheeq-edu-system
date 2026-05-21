@@ -58,7 +58,8 @@ export default function App() {
     selectedFiles.forEach(file => formData.append("files", file));
 
     try {
-      const response = await fetch("/api/analyze", {
+      // التعديل الاستراتيجي الحاسم: توجيه الطلب مباشرة لرابط السيرفر على Vercel لمنع خطأ المسارات النسبي
+      const response = await fetch("https://watheeq-edu-system.vercel.app/api/analyze", {
         method: "POST",
         body: formData
       });
@@ -66,7 +67,7 @@ export default function App() {
       const data = await response.json();
       
       if (!response.ok) {
-        throw new Error(data.error || "حدتث مشكلة في التحليل");
+        throw new Error(data.error || "حدثت مشكلة في التحليل");
       }
       
       setAnalysisData(data);
@@ -593,4 +594,3 @@ export default function App() {
     </div>
   );
 }
-
