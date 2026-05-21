@@ -21,6 +21,36 @@ const startAnalysis = async () => {
   setErrorData(null);
 
   const formData = new FormData();
+  selectedFiles.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data?.error || "حدث خطأ أثناء تحليل الملفات");
+    }
+
+    setAnalysisData(data);
+    setShowResults(true);
+  } catch (err: any) {
+    console.error("Analysis Error:", err);
+    setErrorData(err?.message || "تعذر الاتصال بخدمة التحليل");
+  } finally {
+    setIsAnalyzing(false);
+  }
+};  if (selectedFiles.length === 0) return;
+
+  setIsAnalyzing(true);
+  setErrorData(null);
+
+  const formData = new FormData();
 
   selectedFiles.forEach((file) => {
     formData.append("files", file);
