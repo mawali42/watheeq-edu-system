@@ -1622,9 +1622,8 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               </div>
             </div>
-            )}
-
             </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
