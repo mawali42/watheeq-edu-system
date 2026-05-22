@@ -3,7 +3,7 @@ import React, { useState, useRef } from 'react';import { UploadCloud, FileText, 
 export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const [isExporting, setIsExporting] = useState(false);const fileInputRef = useRef<HTMLInputElement>(null);
 const [isAuthenticated, setIsAuthenticated] = useState(false);
 const [password, setPassword] = useState("");
-const [activeSection, setActiveSection] = useState<string>("overview");
+const [activeSection, setActiveSection] = useState<string>("dashboard");
 const [openSectionTitle, setOpenSectionTitle] = useState<string>("لوحة وثيق");
 
 const APP_PASSWORD = "saud2026"; // 
@@ -759,22 +759,33 @@ const scrollToSection = (id: string, title: string) => {
   setActiveSection(id);
   setOpenSectionTitle(title);
   setTimeout(() => {
-    document.getElementById(`section-${id}`)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, 80);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, 50);
 };
+
+const backToDashboard = () => {
+  setActiveSection("dashboard");
+  setOpenSectionTitle("لوحة وثيق");
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, 50);
+};
+
+const isSectionOpen = (id: string) => activeSection === id;
 
 const exportSectionPDF = (id: string, title: string) => {
   try {
-    const section = document.getElementById(`section-${id}`);
-    if (!section) {
-      setErrorData("لم يتم العثور على القسم المطلوب للتصدير");
-      return;
-    }
+    setActiveSection(id);
+    setOpenSectionTitle(title);
 
-    const cloned = section.cloneNode(true) as HTMLElement;
+    setTimeout(() => {
+      const section = document.getElementById(`section-${id}`);
+      if (!section) {
+        setErrorData("لم يتم العثور على القسم المطلوب للتصدير");
+        return;
+      }
+
+      const cloned = section.cloneNode(true) as HTMLElement;
     const reportWindow = window.open("", "_blank", "width=1000,height=780");
     if (!reportWindow) {
       setErrorData("المتصفح منع فتح نافذة التصدير. اسمح بالنوافذ المنبثقة لهذا الموقع.");
@@ -924,6 +935,7 @@ const exportSectionPDF = (id: string, title: string) => {
       </html>
     `);
     reportWindow.document.close();
+    }, 150);
   } catch (err: any) {
     console.error("Section Export Error:", err);
     setErrorData(err?.message || "تعذر تصدير القسم");
@@ -1259,15 +1271,40 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               </div>
             </div>
 
+            {activeSection !== "dashboard" && (
+              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-4 sm:p-5 shadow-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-xs text-slate-400 mb-1">أنت الآن في قسم</p>
+                  <h2 className="text-xl font-bold text-blue-300">{openSectionTitle}</h2>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => exportSectionPDF(activeSection, openSectionTitle)}
+                    className="bg-emerald-500/20 border border-emerald-500/40 hover:bg-emerald-500 hover:text-white text-emerald-300 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                  >
+                    تصدير هذا القسم PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={backToDashboard}
+                    className="bg-blue-500/20 border border-blue-500/40 hover:bg-blue-500 hover:text-white text-blue-300 px-4 py-2 rounded-xl text-sm font-bold transition-all"
+                  >
+                    رجوع للوحة الأقسام
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeSection !== "dashboard" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             {/* Column Right (or Left in RTL, spans 3/12 in wide, full in mobile) */}
-            <div className="lg:col-span-4 xl:col-span-3 flex flex-col gap-4 sm:gap-6">
-              <div id="section-stats" className="scroll-mt-24"></div>
+            <div className={`flex flex-col gap-4 sm:gap-6 ${["stats","qualitative"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
               {/* Stats Panel */}
               {((analysisData?.statistics?.masteryRate !== undefined && analysisData.statistics.masteryRate !== 0) ||
                 (analysisData?.statistics?.studentCount !== undefined && analysisData.statistics.studentCount !== 0) ||
                 (analysisData?.statistics?.mean !== undefined && analysisData.statistics.mean !== 0)) && (
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div id="section-stats" className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden ${!isSectionOpen("stats") ? "hidden" : ""}`}>
                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full -mr-16 -mt-16"></div>
                   <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-blue-300 flex items-center gap-2">
                      <Target className="w-4 h-4" /> لوحة التحليل الإحصائي
@@ -1309,7 +1346,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               )}
 
               {analysisData?.charts?.gradeDistribution?.length > 0 && (
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg">
+                <div className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg ${!isSectionOpen("stats") ? "hidden" : ""}`}>
                   <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-cyan-300 flex items-center gap-2">
                     <PieChart className="w-4 h-4" /> مخطط توزيع مستويات الأداء
                   </h2>
@@ -1337,9 +1374,8 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               )}
 
-              <div id="section-qualitative" className="scroll-mt-24"></div>
               {/* Qualitative Analysis */}
-              <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg">
+              <div id="section-qualitative" className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg ${!isSectionOpen("qualitative") ? "hidden" : ""}`}>
                 <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-blue-300 flex items-center gap-2">
                    <TrendingUp className="w-4 h-4" /> التحليل النوعي
                 </h2>
@@ -1369,10 +1405,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
             </div>
 
             {/* Center / Wide Column */}
-            <div className="lg:col-span-8 xl:col-span-6 flex flex-col gap-4 sm:gap-6">
-              <div id="section-story" className="scroll-mt-24"></div>
+            <div className={`flex flex-col gap-4 sm:gap-6 ${["story","swot","pareto"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
               {/* Data Story */}
-              <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-7 flex-1 shadow-lg">
+              <div id="section-story" className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-7 flex-1 shadow-lg ${!isSectionOpen("story") ? "hidden" : ""}`}>
                 <h2 className="text-base sm:text-lg font-bold mb-5 flex items-center gap-2 text-white">
                   <span className="text-xl sm:text-2xl">📖</span> قصة البيانات: السرد التربوي
                 </h2>
@@ -1404,9 +1439,8 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               </div>
 
-              <div id="section-swot" className="scroll-mt-24"></div>
               {/* SWOT Matrix */}
-              <div className="bg-blue-600/10 backdrop-blur-md border border-blue-500/30 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-blue-900/20 to-slate-900/50">
+              <div id="section-swot" className={`bg-blue-600/10 backdrop-blur-md border border-blue-500/30 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-blue-900/20 to-slate-900/50 ${!isSectionOpen("swot") ? "hidden" : ""}`}>
                 <h2 className="text-base sm:text-sm font-bold mb-4 text-blue-300">📉 مصفوفة SWOT للوضع الراهن</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   
@@ -1453,10 +1487,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               </div>
 
-              <div id="section-pareto" className="scroll-mt-24"></div>
               {/* Pareto Diagram */}
               {analysisData?.pareto?.vitalFew && analysisData.pareto.vitalFew.length > 0 && (
-                <div className="bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                <div id="section-pareto" className={`bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative overflow-hidden ${!isSectionOpen("pareto") ? "hidden" : ""}`}>
                   <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 blur-xl rounded-full -mr-10 -mt-10"></div>
                   <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-amber-300 flex items-center gap-2">
                      <BarChart3 className="w-4 h-4" /> باريتو التربوي (80/20)
@@ -1479,10 +1512,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
             </div>
 
             {/* Column Left (or Right in RTL, spans 3/12 in wide, full in mobile) */}
-            <div className="lg:col-span-12 xl:col-span-3 flex flex-col gap-4 sm:gap-6 xl:flex-col lg:flex-row lg:gap-4">
-              <div id="section-ishikawa" className="scroll-mt-24"></div>
+            <div className={`flex flex-col gap-4 sm:gap-6 ${["ishikawa","tree","recommendations"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
               {/* Ishikawa Fishbone Diagram Concept */}
-              <div className="lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg">
+              <div id="section-ishikawa" className={`lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg ${!isSectionOpen("ishikawa") ? "hidden" : ""}`}>
                 <h2 className="text-base sm:text-sm font-bold mb-4 text-blue-300 flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4" /> هيكلة إيشيكاوا (عظمة السمكة)
                 </h2>
@@ -1517,10 +1549,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               </div>
 
-              <div id="section-tree" className="scroll-mt-24"></div>
               {/* Problem Tree Diagram */}
               {analysisData?.problemTree && (
-              <div className="lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative flex-col flex h-full">
+              <div id="section-tree" className={`lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg relative flex-col h-full ${!isSectionOpen("tree") ? "hidden" : "flex"}`}>
                 <h2 className="text-base sm:text-sm font-bold mb-4 border-b border-white/10 pb-3 text-emerald-300 flex items-center gap-2">
                    <TreePine className="w-4 h-4" /> شجرة المشكلات
                 </h2>
@@ -1552,9 +1583,8 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               </div>
               )}
 
-              <div id="section-recommendations" className="scroll-mt-24"></div>
               {/* Recommendations */}
-              <div className="lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg flex-col flex h-full">
+              <div id="section-recommendations" className={`lg:flex-1 xl:flex-none bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl p-5 shadow-lg flex-col h-full ${!isSectionOpen("recommendations") ? "hidden" : "flex"}`}>
                 <h2 className="text-base sm:text-sm font-bold mb-4 text-blue-300 uppercase tracking-widest">🚀 التوصيات الذكية</h2>
                 <div className="space-y-4 text-sm leading-relaxed text-slate-300 flex-1">
                   {(analysisData?.recommendations || []).map((rec: string, i: number) => (
@@ -1592,6 +1622,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 </div>
               </div>
             </div>
+            )}
 
             </div>
           </motion.div>
