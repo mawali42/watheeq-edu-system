@@ -219,7 +219,7 @@ ${baseJsonShape}
 
     const response = await ai.models.generateContent({
       // إن ظهر أن هذا الموديل غير متاح في حسابك، استبدله بـ gemini-2.5-flash
-      model: "gemini-2.0-flash",
+      model: "gemini-2.5-flash",
       contents: [
         {
           role: "user",
