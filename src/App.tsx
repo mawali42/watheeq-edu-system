@@ -1,7 +1,10 @@
 import React, { useState, useRef } from 'react';import { UploadCloud, FileText, FileSpreadsheet, Image as ImageIcon, Loader2, ArrowRight, BrainCircuit, Target, TrendingUp, AlertTriangle, RefreshCw, X, Play, BarChart3, TreePine, Download, PieChart } from 'lucide-react';import { motion, AnimatePresence } from 'motion/react';
 
 export default function App() {const [isAnalyzing, setIsAnalyzing] = useState(false);const [showResults, setShowResults] = useState(false);const [analysisData, setAnalysisData] = useState<any>(null);const [selectedFiles, setSelectedFiles] = useState<File[]>([]);const [isDragging, setIsDragging] = useState(false);const [errorData, setErrorData] = useState<string | null>(null);const [isExporting, setIsExporting] = useState(false);const fileInputRef = useRef<HTMLInputElement>(null);
+const [isAuthenticated, setIsAuthenticated] = useState(false);
+const [password, setPassword] = useState("");
 
+const APP_PASSWORD = "saud2026"; // 
 // Handle File Upload interaction
 const handleUploadClick = () => {fileInputRef.current?.click();};
 
@@ -135,6 +138,66 @@ const exportReportPDF = async () => {
     setIsExporting(false);
   }
 };
+
+
+if (!isAuthenticated) {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center bg-slate-900 text-white p-6"
+      style={{
+        background:
+          "radial-gradient(circle at top right, #1e293b, #0f172a)",
+      }}
+      dir="rtl"
+    >
+      <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+        <div className="absolute -top-20 -right-20 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-emerald-500/20 rounded-full blur-3xl"></div>
+
+        <div className="relative z-10 text-center">
+          <div className="w-20 h-20 mx-auto bg-blue-500 rounded-3xl flex items-center justify-center mb-5 shadow-lg">
+            <BrainCircuit className="w-10 h-10 text-white" />
+          </div>
+
+          <h1 className="text-3xl font-bold text-blue-400 mb-2">
+            نظام <span className="text-emerald-400">وثيق</span>
+          </h1>
+
+          <p className="text-slate-400 mb-8 text-sm leading-relaxed">
+            نظام التحليل الاستراتيجي التربوي الذكي
+            <br />
+            الرجاء إدخال كلمة المرور للوصول
+          </p>
+
+          <input
+            type="password"
+            placeholder="أدخل كلمة المرور"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-4 rounded-2xl bg-slate-800 border border-slate-600 text-white text-center outline-none focus:border-blue-400 transition-all mb-5"
+          />
+
+          <button
+            onClick={() => {
+              if (password === APP_PASSWORD) {
+                setIsAuthenticated(true);
+              } else {
+                alert("كلمة المرور غير صحيحة");
+              }
+            }}
+            className="w-full bg-gradient-to-l from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/25"
+          >
+            دخول إلى وثيق
+          </button>
+
+          <p className="text-xs text-slate-500 mt-6">
+            خاص بمدرسة الباسط للتعليم الأساسي
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
 
