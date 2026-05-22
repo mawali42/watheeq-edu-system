@@ -79,18 +79,18 @@ const exportReportPDF = (e?: React.MouseEvent<HTMLButtonElement>) => {
 
     setTimeout(() => {
       window.print();
+
       setTimeout(() => {
         document.title = oldTitle;
         setIsExporting(false);
-      }, 800);
-    }, 150);
+      }, 1000);
+    }, 200);
   } catch (err: any) {
     console.error("PDF Export Error:", err);
     setIsExporting(false);
     setErrorData(err?.message || "تعذر فتح نافذة تصدير PDF");
   }
 };
-
 
 const today = new Date().toLocaleDateString("ar-OM", {
   year: "numeric",
@@ -326,21 +326,34 @@ if (!isAuthenticated) {
 
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
   <style>{`
-    #print-report { display: none; }
+    #print-report {
+      display: none;
+    }
 
     @media print {
       @page {
         size: A4;
-        margin: 12mm;
+        margin: 10mm;
       }
 
-      html, body {
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
         background: #ffffff !important;
         color: #111827 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
+      /* إخفاء واجهة التطبيق بالكامل أثناء الطباعة حتى لا تنتج صفحات فارغة */
+      #app-content-to-export,
+      .pdf-ignore,
+      body > div > div > .fixed {
+        display: none !important;
+      }
+
+      /* إخفاء كل عناصر الشاشة غير تقرير الطباعة */
       body * {
         visibility: hidden !important;
       }
@@ -352,99 +365,107 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
 
       #print-report {
         display: block !important;
-        position: relative !important;
-        inset: auto !important;
+        position: static !important;
         width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
         background: #ffffff !important;
         color: #111827 !important;
         font-family: "Tahoma", "Arial", sans-serif !important;
-        line-height: 1.9 !important;
-        font-size: 13px !important;
-      }
-
-      .pdf-ignore {
-        display: none !important;
+        line-height: 1.75 !important;
+        font-size: 12.4px !important;
+        direction: rtl !important;
       }
 
       .print-cover {
-        min-height: 92vh;
-        padding: 42px 34px;
+        height: 262mm;
+        box-sizing: border-box;
+        padding: 34px 32px;
         border-radius: 18px;
         background:
-          radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 35%),
-          linear-gradient(135deg, #f8fafc 0%, #ffffff 55%, #ecfeff 100%);
+          radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 38%),
+          radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.14), transparent 36%),
+          linear-gradient(135deg, #f8fafc 0%, #ffffff 58%, #ecfeff 100%);
         border: 1px solid #dbeafe;
         page-break-after: always;
+        break-after: page;
         display: flex;
         flex-direction: column;
         justify-content: center;
       }
 
       .print-cover-badge {
-        width: 82px;
-        height: 82px;
+        width: 78px;
+        height: 78px;
         border-radius: 24px;
         background: linear-gradient(135deg, #2563eb, #10b981);
         color: #fff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 25px;
-        font-weight: 800;
-        margin: 0 auto 24px;
-        box-shadow: 0 18px 35px rgba(37, 99, 235, .25);
+        font-size: 24px;
+        font-weight: 900;
+        margin: 0 auto 22px;
+        box-shadow: 0 16px 32px rgba(37, 99, 235, .22);
       }
 
       .print-cover h1 {
         text-align: center;
-        font-size: 34px;
+        font-size: 32px;
         color: #1e3a8a;
-        margin: 0 0 14px;
+        margin: 0 0 12px;
         font-weight: 900;
+        letter-spacing: -0.5px;
       }
 
       .print-cover-subtitle {
         text-align: center;
         color: #475569;
-        font-size: 16px;
-        margin-bottom: 34px;
+        font-size: 15px;
+        margin: 0 0 28px;
       }
 
       .print-meta-grid {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin: 28px 0;
+        gap: 10px;
+        margin: 24px 0;
       }
 
       .print-meta-grid div {
         background: #ffffff;
         border: 1px solid #dbeafe;
         border-radius: 14px;
-        padding: 14px;
+        padding: 12px 10px;
         text-align: center;
+        min-height: 62px;
       }
 
       .print-meta-grid span {
         display: block;
         color: #64748b;
-        font-size: 11px;
-        margin-bottom: 8px;
+        font-size: 10.5px;
+        margin-bottom: 7px;
       }
 
       .print-meta-grid strong {
         color: #0f172a;
-        font-size: 16px;
+        font-size: 15px;
       }
 
       .print-cover-footer {
         display: flex;
         justify-content: space-between;
         gap: 18px;
-        margin-top: 42px;
+        margin-top: 36px;
         border-top: 1px solid #dbeafe;
-        padding-top: 18px;
+        padding-top: 16px;
         color: #334155;
+      }
+
+      .print-cover-footer strong {
+        color: #1e3a8a;
       }
 
       .print-cover-footer p {
@@ -457,9 +478,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
         align-items: center;
         color: #64748b;
         border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 8px;
-        margin-bottom: 12px;
-        font-size: 11px;
+        padding-bottom: 6px;
+        margin-bottom: 10px;
+        font-size: 10px;
       }
 
       .print-page-footer {
@@ -468,18 +489,20 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
         align-items: center;
         color: #64748b;
         border-top: 1px solid #e2e8f0;
-        padding-top: 8px;
-        margin-top: 18px;
-        font-size: 10px;
+        padding-top: 7px;
+        margin-top: 12px;
+        font-size: 9.6px;
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
 
       .print-card {
         background: #ffffff !important;
         border: 1px solid #e2e8f0 !important;
-        border-radius: 16px !important;
-        padding: 18px 20px !important;
-        margin: 0 0 14px !important;
-        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06) !important;
+        border-radius: 14px !important;
+        padding: 14px 16px !important;
+        margin: 0 0 10px !important;
+        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.045) !important;
       }
 
       .print-avoid {
@@ -489,25 +512,25 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
 
       .print-section-title {
         color: #1e40af !important;
-        font-size: 18px !important;
+        font-size: 16px !important;
         font-weight: 900 !important;
-        margin: 0 0 12px !important;
-        padding-bottom: 8px !important;
+        margin: 0 0 10px !important;
+        padding-bottom: 6px !important;
         border-bottom: 2px solid #dbeafe !important;
       }
 
       .print-story p,
       .print-card p {
-        margin: 0 0 8px !important;
+        margin: 0 0 6px !important;
       }
 
       .print-list {
         margin: 0 !important;
-        padding: 0 20px 0 0 !important;
+        padding: 0 18px 0 0 !important;
       }
 
       .print-list li {
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
         color: #1f2937 !important;
       }
 
@@ -516,7 +539,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
       .print-four-grid {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 12px !important;
+        gap: 10px !important;
       }
 
       .print-swot > div,
@@ -524,8 +547,8 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
       .print-tree > div,
       .print-plan > div {
         border: 1px solid #e5e7eb !important;
-        border-radius: 14px !important;
-        padding: 13px !important;
+        border-radius: 13px !important;
+        padding: 11px 12px !important;
         background: #f8fafc !important;
       }
 
@@ -534,9 +557,9 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
       .print-tree h3,
       .print-plan h3 {
         color: #0f766e !important;
-        font-size: 13px !important;
-        margin: 0 0 8px !important;
-        font-weight: 800 !important;
+        font-size: 12.3px !important;
+        margin: 0 0 7px !important;
+        font-weight: 900 !important;
       }
 
       .print-note {
@@ -544,37 +567,42 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
         background: #fffbeb !important;
         border: 1px solid #fde68a !important;
         border-radius: 12px !important;
-        padding: 10px !important;
+        padding: 8px 10px !important;
+        margin-bottom: 8px !important;
       }
 
       .print-problem,
       .print-advice {
         background: #eff6ff !important;
         border: 1px solid #bfdbfe !important;
-        border-radius: 14px !important;
-        padding: 12px !important;
-        margin-bottom: 12px !important;
+        border-radius: 13px !important;
+        padding: 10px 12px !important;
+        margin-bottom: 10px !important;
       }
 
-      .print-tree {
+      .print-tree,
+      .print-plan {
         display: grid !important;
-        gap: 10px !important;
+        gap: 8px !important;
       }
 
       .print-trunk {
         background: #f1f5f9 !important;
         border-color: #cbd5e1 !important;
         text-align: center !important;
-        font-weight: 700 !important;
-      }
-
-      .print-plan {
-        display: grid !important;
-        gap: 10px !important;
+        font-weight: 800 !important;
       }
 
       a[href]:after {
         content: "" !important;
+      }
+
+      /* منع الصفحة البيضاء الأخيرة */
+      #print-report > *:last-child {
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
     }
   `}</style>
@@ -608,12 +636,12 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
              <button
                 type="button"
                 onClick={(e) => exportReportPDF(e)}
-                disabled={false}
+                disabled={isExporting}
                 className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تصدير التقرير PDF"
              >
-                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="hidden sm:inline font-medium text-sm">تصدير PDF</span>
+                {isExporting ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
+                <span className="hidden sm:inline font-medium text-sm">{isExporting ? "جاري التجهيز..." : "تصدير PDF"}</span>
              </button>
              <button
                 type="button"
