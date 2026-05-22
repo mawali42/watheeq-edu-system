@@ -74,186 +74,502 @@ const exportReportPDF = (e?: React.MouseEvent<HTMLButtonElement>) => {
     setErrorData(null);
     setIsExporting(true);
 
-    const oldTitle = document.title;
-    document.title = `تقرير وثيق - ${analysisData?.statistics?.subjectName || "تحليل تربوي"}`;
+    const data = analysisData || {};
+    const today = new Date().toLocaleDateString("ar-OM", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
 
-    setTimeout(() => {
-      window.print();
+    const esc = (value: any) =>
+      String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 
-      setTimeout(() => {
-        document.title = oldTitle;
-        setIsExporting(false);
-      }, 1000);
-    }, 200);
-  } catch (err: any) {
-    console.error("PDF Export Error:", err);
-    setIsExporting(false);
-    setErrorData(err?.message || "تعذر فتح نافذة تصدير PDF");
+    const list = (items: any[] = []) => {
+      if (!items || items.length === 0) return `<p class="muted">لا توجد بيانات متاحة.</p>`;
+      return `<ul>${items.map((item) => {
+        const value = typeof item === "string" ? item : item?.title || item?.action || item?.description || JSON.stringify(item);
+        return `<li>${esc(value)}</li>`;
+      }).join("")}</ul>`;
+    };
+
+    const plan = (items: any[] = []) => {
+      if (!items || items.length === 0) {
+        return `<tr><td colspan="5" class="muted">لا توجد خطة علاجية متاحة.</td></tr>`;
+      }
+
+      return items.map((item, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${esc(item?.title || `إجراء ${i + 1}`)}</td>
+          <td>${esc(item?.action || item?.description || item)}</td>
+          <td>حسب الخطة التنفيذية</td>
+          <td>مؤشر تحقق قابل للقياس</td>
+        </tr>
+      `).join("");
+    };
+
+    const comparisonTable = (items: any[] = []) => {
+      if (!items || items.length === 0) return "";
+      return `
+        <section class="page-section avoid">
+          <h2>المقارنة الاستراتيجية بين الملفين</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>المعيار</th>
+                <th>${esc(data?.comparison?.fileOneTitle || "الملف الأول")}</th>
+                <th>${esc(data?.comparison?.fileTwoTitle || "الملف الثاني")}</th>
+                <th>الحكم التحليلي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map((row: any) => `
+                <tr>
+                  <td>${esc(row.criterion)}</td>
+                  <td>${esc(row.fileOne)}</td>
+                  <td>${esc(row.fileTwo)}</td>
+                  <td>${esc(row.judgment)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </section>
+      `;
+    };
+
+    const html = `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<title>تقرير وثيق - ${esc(data?.statistics?.subjectName || "تحليل تربوي")}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: #111827;
+    font-family: Tahoma, Arial, sans-serif;
+    line-height: 1.75;
+    font-size: 12.5px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-};
 
-const today = new Date().toLocaleDateString("ar-OM", {
-  year: "numeric",
-  month: "long",
-  day: "numeric",
-});
+  .page {
+    width: 100%;
+    min-height: 270mm;
+    page-break-after: always;
+  }
 
-const PrintSection = ({ title, children, className = "" }: any) => (
-  <section className={`print-card ${className}`}>
-    <h2 className="print-section-title">{title}</h2>
-    <div>{children}</div>
+  .page:last-child { page-break-after: auto; }
+
+  .cover {
+    min-height: 270mm;
+    padding: 34mm 18mm 20mm;
+    border: 1px solid #dbeafe;
+    border-radius: 18px;
+    background:
+      radial-gradient(circle at top right, rgba(37,99,235,.18), transparent 38%),
+      radial-gradient(circle at bottom left, rgba(16,185,129,.16), transparent 34%),
+      linear-gradient(135deg, #f8fafc 0%, #ffffff 55%, #ecfeff 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .logo {
+    width: 88px;
+    height: 88px;
+    margin: 0 auto 20px;
+    border-radius: 26px;
+    background: linear-gradient(135deg, #2563eb, #10b981);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 900;
+    box-shadow: 0 20px 40px rgba(37,99,235,.22);
+  }
+
+  .cover h1 {
+    text-align: center;
+    font-size: 34px;
+    margin: 0 0 10px;
+    color: #1e3a8a;
+    font-weight: 900;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 15px;
+    color: #475569;
+    margin: 0 auto 30px;
+    max-width: 640px;
+  }
+
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 25px 0 32px;
+  }
+
+  .meta div {
+    border: 1px solid #dbeafe;
+    background: rgba(255,255,255,.9);
+    border-radius: 14px;
+    padding: 13px 10px;
+    text-align: center;
+  }
+
+  .meta span {
+    display: block;
+    color: #64748b;
+    font-size: 10.5px;
+    margin-bottom: 7px;
+  }
+
+  .meta strong {
+    display: block;
+    color: #0f172a;
+    font-size: 15px;
+  }
+
+  .cover-footer {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid #dbeafe;
+    padding-top: 16px;
+    color: #334155;
+    margin-top: 26px;
+  }
+
+  .cover-footer strong { color: #1e3a8a; }
+  .cover-footer p { margin: 4px 0 0; }
+
+  .doc-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #64748b;
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 7px;
+    margin-bottom: 12px;
+    font-size: 10px;
+  }
+
+  .doc-footer {
+    display: flex;
+    justify-content: space-between;
+    color: #64748b;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 7px;
+    margin-top: 12px;
+    font-size: 9.5px;
+  }
+
+  h2 {
+    color: #1e40af;
+    font-size: 17px;
+    margin: 0 0 10px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #dbeafe;
+    font-weight: 900;
+  }
+
+  h3 {
+    color: #0f766e;
+    font-size: 13px;
+    margin: 0 0 7px;
+    font-weight: 900;
+  }
+
+  .page-section {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 15px;
+    padding: 14px 16px;
+    margin-bottom: 11px;
+    box-shadow: 0 6px 16px rgba(15,23,42,.045);
+  }
+
+  .avoid { break-inside: avoid; page-break-inside: avoid; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .four-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .mini-card {
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 13px;
+    padding: 10px 12px;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0 18px 0 0;
+  }
+
+  li { margin-bottom: 4px; }
+  p { margin: 0 0 7px; }
+  .muted { color: #64748b; }
+
+  .story p {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 9px 11px;
+    margin-bottom: 8px;
+  }
+
+  .highlight {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 13px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+  }
+
+  .warning {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 13px;
+    padding: 10px 12px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    overflow: hidden;
+    border-radius: 12px;
+    font-size: 11.5px;
+  }
+
+  th {
+    background: #1e40af;
+    color: #fff;
+    padding: 8px;
+    text-align: right;
+  }
+
+  td {
+    border: 1px solid #e5e7eb;
+    padding: 8px;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td { background: #f8fafc; }
+
+  .print-actions {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    display: flex;
+    gap: 8px;
+    z-index: 9999;
+  }
+
+  .print-actions button {
+    border: 0;
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: #2563eb;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .print-actions button.secondary { background: #0f172a; }
+
+  @media print {
+    .print-actions { display: none; }
+    body { font-size: 12.2px; }
+  }
+</style>
+</head>
+<body>
+  <div class="print-actions">
+    <button onclick="window.print()">حفظ PDF / طباعة</button>
+    <button class="secondary" onclick="window.close()">إغلاق</button>
+  </div>
+
+  <section class="page cover">
+    <div class="logo">وثيق</div>
+    <h1>التقرير التحليلي الاستراتيجي</h1>
+    <p class="subtitle">تقرير تربوي ذكي مبني على تحليل الوثائق والاستمارات التعليمية، ومصمم بصيغة تنفيذية جاهزة للعرض والطباعة.</p>
+
+    <div class="meta">
+      <div><span>المجال</span><strong>${esc(data?.statistics?.subjectName || "تحليل تربوي")}</strong></div>
+      <div><span>عدد المستهدفين / العينة</span><strong>${esc(data?.statistics?.studentCount || "—")}</strong></div>
+      <div><span>المتوسط الحسابي</span><strong>${esc(data?.statistics?.mean || "—")}</strong></div>
+      <div><span>نسبة الإتقان</span><strong>${data?.statistics?.masteryRate ? esc(data.statistics.masteryRate) + "%" : "—"}</strong></div>
+    </div>
+
+    <div class="cover-footer">
+      <div><strong>إعداد وتطوير</strong><p>أ. سعود المعولي</p></div>
+      <div><strong>تاريخ التقرير</strong><p>${esc(today)}</p></div>
+    </div>
   </section>
-);
 
-const PrintList = ({ items }: any) => (
-  <ul className="print-list">
-    {(items || []).map((item: any, i: number) => (
-      <li key={i}>{typeof item === "string" ? item : item?.title || item?.action || item?.description || JSON.stringify(item)}</li>
-    ))}
-  </ul>
-);
+  <main class="page">
+    <div class="doc-header">
+      <span>نظام وثيق للتحليل الاستراتيجي التربوي</span>
+      <span>${esc(today)}</span>
+    </div>
 
-const PrintableReport = () => (
-  <div id="print-report" dir="rtl">
-    <section className="print-cover">
-      <div className="print-cover-badge">وثيق</div>
-      <h1>التقرير التحليلي الاستراتيجي</h1>
-      <p className="print-cover-subtitle">
-        تقرير تربوي ذكي مبني على تحليل الوثائق والاستمارات التعليمية
-      </p>
+    ${data?.analysisMode === "comparison" ? `
+      <section class="page-section avoid">
+        <h2>الملخص التنفيذي للمقارنة</h2>
+        <div class="highlight">${esc(data?.comparison?.executiveSummary || "لا يوجد ملخص مقارنة متاح.")}</div>
+        <div class="two-col">
+          <div class="mini-card"><h3>الملف الأول</h3><p>${esc(data?.comparison?.fileOneTitle || "الملف الأول")}</p></div>
+          <div class="mini-card"><h3>الملف الثاني</h3><p>${esc(data?.comparison?.fileTwoTitle || "الملف الثاني")}</p></div>
+        </div>
+      </section>
 
-      <div className="print-meta-grid">
-        <div>
-          <span>المجال</span>
-          <strong>{analysisData?.statistics?.subjectName || "تحليل تربوي"}</strong>
-        </div>
-        <div>
-          <span>عدد المستهدفين / العينة</span>
-          <strong>{analysisData?.statistics?.studentCount || "—"}</strong>
-        </div>
-        <div>
-          <span>المتوسط الحسابي</span>
-          <strong>{analysisData?.statistics?.mean || "—"}</strong>
-        </div>
-        <div>
-          <span>نسبة الإتقان</span>
-          <strong>{analysisData?.statistics?.masteryRate ? `${analysisData.statistics.masteryRate}%` : "—"}</strong>
-        </div>
+      <div class="two-col">
+        <section class="page-section avoid"><h2>أوجه التشابه</h2>${list(data?.comparison?.keySimilarities)}</section>
+        <section class="page-section avoid"><h2>أوجه الاختلاف</h2>${list(data?.comparison?.keyDifferences)}</section>
       </div>
 
-      <div className="print-cover-footer">
-        <div>
-          <strong>إعداد وتطوير</strong>
-          <p>أ. سعود المعولي</p>
-        </div>
-        <div>
-          <strong>تاريخ التقرير</strong>
-          <p>{today}</p>
-        </div>
+      <div class="two-col">
+        <section class="page-section avoid"><h2>مؤشرات التحسن</h2>${list(data?.comparison?.improvements)}</section>
+        <section class="page-section avoid"><h2>مؤشرات التراجع</h2>${list(data?.comparison?.declines)}</section>
+      </div>
+
+      <section class="page-section avoid">
+        <h2>القراءة الاستراتيجية</h2>
+        <p>${esc(data?.comparison?.strategicReading || "لا توجد قراءة استراتيجية متاحة.")}</p>
+      </section>
+
+      ${comparisonTable(data?.comparison?.comparisonTable)}
+
+      <section class="page-section avoid">
+        <h2>الحكم النهائي للمقارنة</h2>
+        <div class="warning">${esc(data?.comparison?.finalJudgment || "لا يوجد حكم نهائي متاح.")}</div>
+      </section>
+    ` : ""}
+
+    <section class="page-section avoid">
+      <h2>أولًا: الملخص والسرد التربوي</h2>
+      <div class="story">
+        ${data?.dataStory?.analysis ? `<p><strong>التحليل:</strong> ${esc(data.dataStory.analysis)}</p>` : ""}
+        ${data?.dataStory?.interpretation ? `<p><strong>التفسير:</strong> ${esc(data.dataStory.interpretation)}</p>` : ""}
+        ${data?.dataStory?.evaluation ? `<p><strong>التقييم:</strong> ${esc(data.dataStory.evaluation)}</p>` : ""}
+        ${data?.dataStory?.procedure ? `<p><strong>الإجراء:</strong> ${esc(data.dataStory.procedure)}</p>` : ""}
       </div>
     </section>
 
-    <div className="print-page-header">
-      <span>نظام وثيق للتحليل الاستراتيجي</span>
-      <span>{today}</span>
+    <div class="two-col">
+      <section class="page-section avoid"><h2>نقاط القوة</h2>${list(data?.qualitative?.strengths)}</section>
+      <section class="page-section avoid"><h2>الفجوات التعليمية</h2>${list(data?.qualitative?.gaps)}</section>
     </div>
 
-    <PrintSection title="أولًا: الملخص والسرد التربوي" className="print-avoid">
-      <div className="print-story">
-        {analysisData?.dataStory?.analysis && <p><strong>التحليل:</strong> {analysisData.dataStory.analysis}</p>}
-        {analysisData?.dataStory?.interpretation && <p><strong>التفسير:</strong> {analysisData.dataStory.interpretation}</p>}
-        {analysisData?.dataStory?.evaluation && <p><strong>التقييم:</strong> {analysisData.dataStory.evaluation}</p>}
-        {analysisData?.dataStory?.procedure && <p><strong>الإجراء:</strong> {analysisData.dataStory.procedure}</p>}
+    <section class="page-section avoid">
+      <h2>ثانيًا: مصفوفة SWOT</h2>
+      <div class="four-grid">
+        <div class="mini-card"><h3>نقاط القوة</h3>${list(data?.swot?.strengths)}</div>
+        <div class="mini-card"><h3>نقاط الضعف</h3>${list(data?.swot?.weaknesses)}</div>
+        <div class="mini-card"><h3>الفرص</h3>${list(data?.swot?.opportunities)}</div>
+        <div class="mini-card"><h3>التهديدات</h3>${list(data?.swot?.threats)}</div>
       </div>
-    </PrintSection>
+    </section>
 
-    <div className="print-two-columns">
-      <PrintSection title="نقاط القوة" className="print-avoid">
-        <PrintList items={analysisData?.qualitative?.strengths} />
-      </PrintSection>
-      <PrintSection title="الفجوات التعليمية" className="print-avoid">
-        <PrintList items={analysisData?.qualitative?.gaps} />
-      </PrintSection>
-    </div>
+    <section class="page-section avoid">
+      <h2>ثالثًا: باريتو التربوي 80/20</h2>
+      <p class="warning">الفجوات الآتية تمثل الأولويات الأعلى أثرًا في تحسين الأداء:</p>
+      ${list(data?.pareto?.vitalFew)}
+    </section>
 
-    <PrintSection title="ثانيًا: مصفوفة SWOT" className="print-avoid">
-      <div className="print-swot">
-        <div><h3>نقاط القوة</h3><PrintList items={analysisData?.swot?.strengths} /></div>
-        <div><h3>نقاط الضعف</h3><PrintList items={analysisData?.swot?.weaknesses} /></div>
-        <div><h3>الفرص</h3><PrintList items={analysisData?.swot?.opportunities} /></div>
-        <div><h3>التهديدات</h3><PrintList items={analysisData?.swot?.threats} /></div>
+    <section class="page-section avoid">
+      <h2>رابعًا: هيكلة إيشيكاوا (عظمة السمكة)</h2>
+      <div class="highlight"><strong>المشكلة الرئيسة:</strong> ${esc(data?.ishikawa?.mainProblem || "تم رصد فجوة في البيانات المرفقة")}</div>
+      <div class="four-grid">
+        <div class="mini-card"><h3>المعلم</h3><p>${esc(data?.ishikawa?.teacher || "—")}</p></div>
+        <div class="mini-card"><h3>الطالب</h3><p>${esc(data?.ishikawa?.student || "—")}</p></div>
+        <div class="mini-card"><h3>المنهج / السياسات</h3><p>${esc(data?.ishikawa?.curriculum || "—")}</p></div>
+        <div class="mini-card"><h3>البيئة التربوية</h3><p>${esc(data?.ishikawa?.environment || "—")}</p></div>
       </div>
-    </PrintSection>
+    </section>
 
-    {analysisData?.pareto?.vitalFew?.length > 0 && (
-      <PrintSection title="ثالثًا: باريتو التربوي 80/20" className="print-avoid">
-        <p className="print-note">الفجوات الآتية تمثل الأولويات الأعلى أثرًا في تحسين الأداء:</p>
-        <PrintList items={analysisData.pareto.vitalFew} />
-      </PrintSection>
-    )}
+    <section class="page-section avoid">
+      <h2>خامسًا: شجرة المشكلات</h2>
+      <div class="mini-card"><h3>الأغصان: الآثار الميدانية</h3>${list(data?.problemTree?.branches)}</div>
+      <div class="mini-card"><h3>الجذع: المشكلة</h3><p>${esc(data?.problemTree?.trunk || "—")}</p></div>
+      <div class="mini-card"><h3>الجذور: الأسباب</h3>${list(data?.problemTree?.roots)}</div>
+    </section>
 
-    {analysisData?.ishikawa && (
-      <PrintSection title="رابعًا: هيكلة إيشيكاوا (عظمة السمكة)" className="print-avoid">
-        <div className="print-problem">
-          <strong>المشكلة الرئيسة:</strong> {analysisData.ishikawa.mainProblem || "تم رصد فجوة في البيانات المرفقة"}
-        </div>
-        <div className="print-four-grid">
-          <div><h3>المعلم</h3><p>{analysisData.ishikawa.teacher || "—"}</p></div>
-          <div><h3>الطالب</h3><p>{analysisData.ishikawa.student || "—"}</p></div>
-          <div><h3>المنهج / السياسات</h3><p>{analysisData.ishikawa.curriculum || "—"}</p></div>
-          <div><h3>البيئة التربوية</h3><p>{analysisData.ishikawa.environment || "—"}</p></div>
-        </div>
-      </PrintSection>
-    )}
+    <section class="page-section avoid">
+      <h2>سادسًا: التوصيات الذكية</h2>
+      ${list(data?.recommendations)}
+      ${data?.strategicAdvice ? `<div class="highlight"><strong>نصيحة استراتيجية:</strong><p>${esc(data.strategicAdvice)}</p></div>` : ""}
+    </section>
 
-    {analysisData?.problemTree && (
-      <PrintSection title="خامسًا: شجرة المشكلات" className="print-avoid">
-        <div className="print-tree">
-          <div>
-            <h3>الأغصان: الآثار الميدانية</h3>
-            <PrintList items={analysisData.problemTree.branches} />
-          </div>
-          <div className="print-trunk">
-            <h3>الجذع: المشكلة</h3>
-            <p>{analysisData.problemTree.trunk}</p>
-          </div>
-          <div>
-            <h3>الجذور: الأسباب</h3>
-            <PrintList items={analysisData.problemTree.roots} />
-          </div>
-        </div>
-      </PrintSection>
-    )}
+    <section class="page-section avoid">
+      <h2>سابعًا: الخطة العلاجية المقترحة</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>م</th>
+            <th>الإجراء</th>
+            <th>الوصف التنفيذي</th>
+            <th>المدة</th>
+            <th>مؤشر النجاح</th>
+          </tr>
+        </thead>
+        <tbody>${plan(data?.interventionPlan)}</tbody>
+      </table>
+    </section>
 
-    <PrintSection title="سادسًا: التوصيات الذكية" className="print-avoid">
-      <PrintList items={analysisData?.recommendations} />
-      {analysisData?.strategicAdvice && (
-        <div className="print-advice">
-          <strong>نصيحة استراتيجية:</strong>
-          <p>{analysisData.strategicAdvice}</p>
-        </div>
-      )}
-    </PrintSection>
-
-    {analysisData?.interventionPlan?.length > 0 && (
-      <PrintSection title="سابعًا: الخطة العلاجية المقترحة" className="print-avoid">
-        <div className="print-plan">
-          {analysisData.interventionPlan.map((step: any, i: number) => (
-            <div key={i}>
-              <h3>{step.title || `إجراء ${i + 1}`}</h3>
-              <p>{step.action || step.description || step}</p>
-            </div>
-          ))}
-        </div>
-      </PrintSection>
-    )}
-
-    <div className="print-page-footer">
+    <div class="doc-footer">
       <span>تم إنشاء هذا التقرير عبر نظام وثيق للتحليل الاستراتيجي التربوي</span>
       <span>تصميم وتطوير أ. سعود المعولي</span>
     </div>
-  </div>
-);
+  </main>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() { window.print(); }, 500);
+    }
+  </script>
+</body>
+</html>`;
+
+    const reportWindow = window.open("", "_blank", "width=1100,height=800");
+    if (!reportWindow) {
+      throw new Error("المتصفح منع فتح نافذة التقرير. اسمح بالنوافذ المنبثقة لهذا الموقع.");
+    }
+
+    reportWindow.document.open();
+    reportWindow.document.write(html);
+    reportWindow.document.close();
+
+    setTimeout(() => {
+      setIsExporting(false);
+    }, 1200);
+  } catch (err: any) {
+    console.error("PDF Export Error:", err);
+    setIsExporting(false);
+    setErrorData(err?.message || "تعذر إنشاء تقرير PDF الاحترافي");
+  }
+};
 
 if (!isAuthenticated) {
   return (
@@ -325,288 +641,6 @@ if (!isAuthenticated) {
 }
 
 return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex flex-col overflow-x-hidden font-sans relative"style={{ background: 'radial-gradient(circle at top right, #1e293b, #0f172a)' }}dir="rtl">
-  <style>{`
-    #print-report {
-      display: none;
-    }
-
-    @media print {
-      @page {
-        size: A4;
-        margin: 10mm;
-      }
-
-      html,
-      body {
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #ffffff !important;
-        color: #111827 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      /* إخفاء واجهة التطبيق بالكامل أثناء الطباعة حتى لا تنتج صفحات فارغة */
-      #app-content-to-export,
-      .pdf-ignore,
-      body > div > div > .fixed {
-        display: none !important;
-      }
-
-      /* إخفاء كل عناصر الشاشة غير تقرير الطباعة */
-      body * {
-        visibility: hidden !important;
-      }
-
-      #print-report,
-      #print-report * {
-        visibility: visible !important;
-      }
-
-      #print-report {
-        display: block !important;
-        position: static !important;
-        width: 100% !important;
-        max-width: 100% !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        background: #ffffff !important;
-        color: #111827 !important;
-        font-family: "Tahoma", "Arial", sans-serif !important;
-        line-height: 1.75 !important;
-        font-size: 12.4px !important;
-        direction: rtl !important;
-      }
-
-      .print-cover {
-        height: 262mm;
-        box-sizing: border-box;
-        padding: 34px 32px;
-        border-radius: 18px;
-        background:
-          radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 38%),
-          radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.14), transparent 36%),
-          linear-gradient(135deg, #f8fafc 0%, #ffffff 58%, #ecfeff 100%);
-        border: 1px solid #dbeafe;
-        page-break-after: always;
-        break-after: page;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-      }
-
-      .print-cover-badge {
-        width: 78px;
-        height: 78px;
-        border-radius: 24px;
-        background: linear-gradient(135deg, #2563eb, #10b981);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        font-weight: 900;
-        margin: 0 auto 22px;
-        box-shadow: 0 16px 32px rgba(37, 99, 235, .22);
-      }
-
-      .print-cover h1 {
-        text-align: center;
-        font-size: 32px;
-        color: #1e3a8a;
-        margin: 0 0 12px;
-        font-weight: 900;
-        letter-spacing: -0.5px;
-      }
-
-      .print-cover-subtitle {
-        text-align: center;
-        color: #475569;
-        font-size: 15px;
-        margin: 0 0 28px;
-      }
-
-      .print-meta-grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin: 24px 0;
-      }
-
-      .print-meta-grid div {
-        background: #ffffff;
-        border: 1px solid #dbeafe;
-        border-radius: 14px;
-        padding: 12px 10px;
-        text-align: center;
-        min-height: 62px;
-      }
-
-      .print-meta-grid span {
-        display: block;
-        color: #64748b;
-        font-size: 10.5px;
-        margin-bottom: 7px;
-      }
-
-      .print-meta-grid strong {
-        color: #0f172a;
-        font-size: 15px;
-      }
-
-      .print-cover-footer {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
-        margin-top: 36px;
-        border-top: 1px solid #dbeafe;
-        padding-top: 16px;
-        color: #334155;
-      }
-
-      .print-cover-footer strong {
-        color: #1e3a8a;
-      }
-
-      .print-cover-footer p {
-        margin: 4px 0 0;
-      }
-
-      .print-page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: #64748b;
-        border-bottom: 1px solid #e2e8f0;
-        padding-bottom: 6px;
-        margin-bottom: 10px;
-        font-size: 10px;
-      }
-
-      .print-page-footer {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        color: #64748b;
-        border-top: 1px solid #e2e8f0;
-        padding-top: 7px;
-        margin-top: 12px;
-        font-size: 9.6px;
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-
-      .print-card {
-        background: #ffffff !important;
-        border: 1px solid #e2e8f0 !important;
-        border-radius: 14px !important;
-        padding: 14px 16px !important;
-        margin: 0 0 10px !important;
-        box-shadow: 0 6px 16px rgba(15, 23, 42, 0.045) !important;
-      }
-
-      .print-avoid {
-        break-inside: avoid;
-        page-break-inside: avoid;
-      }
-
-      .print-section-title {
-        color: #1e40af !important;
-        font-size: 16px !important;
-        font-weight: 900 !important;
-        margin: 0 0 10px !important;
-        padding-bottom: 6px !important;
-        border-bottom: 2px solid #dbeafe !important;
-      }
-
-      .print-story p,
-      .print-card p {
-        margin: 0 0 6px !important;
-      }
-
-      .print-list {
-        margin: 0 !important;
-        padding: 0 18px 0 0 !important;
-      }
-
-      .print-list li {
-        margin-bottom: 4px !important;
-        color: #1f2937 !important;
-      }
-
-      .print-two-columns,
-      .print-swot,
-      .print-four-grid {
-        display: grid !important;
-        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        gap: 10px !important;
-      }
-
-      .print-swot > div,
-      .print-four-grid > div,
-      .print-tree > div,
-      .print-plan > div {
-        border: 1px solid #e5e7eb !important;
-        border-radius: 13px !important;
-        padding: 11px 12px !important;
-        background: #f8fafc !important;
-      }
-
-      .print-swot h3,
-      .print-four-grid h3,
-      .print-tree h3,
-      .print-plan h3 {
-        color: #0f766e !important;
-        font-size: 12.3px !important;
-        margin: 0 0 7px !important;
-        font-weight: 900 !important;
-      }
-
-      .print-note {
-        color: #475569 !important;
-        background: #fffbeb !important;
-        border: 1px solid #fde68a !important;
-        border-radius: 12px !important;
-        padding: 8px 10px !important;
-        margin-bottom: 8px !important;
-      }
-
-      .print-problem,
-      .print-advice {
-        background: #eff6ff !important;
-        border: 1px solid #bfdbfe !important;
-        border-radius: 13px !important;
-        padding: 10px 12px !important;
-        margin-bottom: 10px !important;
-      }
-
-      .print-tree,
-      .print-plan {
-        display: grid !important;
-        gap: 8px !important;
-      }
-
-      .print-trunk {
-        background: #f1f5f9 !important;
-        border-color: #cbd5e1 !important;
-        text-align: center !important;
-        font-weight: 800 !important;
-      }
-
-      a[href]:after {
-        content: "" !important;
-      }
-
-      /* منع الصفحة البيضاء الأخيرة */
-      #print-report > *:last-child {
-        margin-bottom: 0 !important;
-        padding-bottom: 0 !important;
-        page-break-after: auto !important;
-        break-after: auto !important;
-      }
-    }
-  `}</style>
-  {showResults && <PrintableReport />}
 
   {/* Background Dots */}
   <div className="fixed inset-0 z-0 opacity-20 pointer-events-none" 
@@ -641,7 +675,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                 title="تصدير التقرير PDF"
              >
                 {isExporting ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
-                <span className="hidden sm:inline font-medium text-sm">{isExporting ? "جاري التجهيز..." : "تصدير PDF"}</span>
+                <span className="hidden sm:inline font-medium text-sm">{isExporting ? "جاري إنشاء التقرير..." : "تصدير PDF"}</span>
              </button>
              <button
                 type="button"
