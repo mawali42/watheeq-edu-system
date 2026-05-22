@@ -345,14 +345,15 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
         visibility: hidden !important;
       }
 
-      #print-report, #print-report * {
+      #print-report,
+      #print-report * {
         visibility: visible !important;
       }
 
       #print-report {
         display: block !important;
-        position: absolute !important;
-        inset: 0 !important;
+        position: relative !important;
+        inset: auto !important;
         width: 100% !important;
         background: #ffffff !important;
         color: #111827 !important;
@@ -577,6 +578,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
       }
     }
   `}</style>
+  {showResults && <PrintableReport />}
 
   {/* Background Dots */}
   <div className="fixed inset-0 z-0 opacity-20 pointer-events-none" 
