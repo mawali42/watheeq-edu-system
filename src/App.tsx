@@ -62,83 +62,27 @@ const resetAnalysis = (e?: React.MouseEvent<HTMLButtonElement>) => {
   e?.preventDefault();
   e?.stopPropagation();
 
-  setShowResults(false);
-  setIsAnalyzing(false);
-  setAnalysisData(null);
-  setErrorData(null);
-  setSelectedFiles([]);
-  setIsDragging(false);
-  setIsExporting(false);
-
-  if (fileInputRef.current) {
-    fileInputRef.current.value = "";
-  }
-
-  setTimeout(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, 50);
+  // إعادة تشغيل الصفحة هي الأضمن لإفراغ الملفات والنتائج وحالة التصدير بالكامل
+  window.location.href = window.location.origin + window.location.pathname;
 };
 
-const exportReportPDF = async () => {
-  setIsExporting(true);
-  setErrorData(null);
+const exportReportPDF = (e?: React.MouseEvent<HTMLButtonElement>) => {
+  e?.preventDefault();
+  e?.stopPropagation();
 
-  const buttons = document.querySelectorAll(".pdf-ignore");
   try {
-    const element = document.getElementById("app-content-to-export");
-    if (!element) {
-      throw new Error("لم يتم العثور على محتوى التقرير للتصدير");
-    }
+    setErrorData(null);
 
-    buttons.forEach((btn: any) => {
-      btn.style.visibility = "hidden";
-    });
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
-    try {
-      const html2pdfModule: any = await import("html2pdf.js");
-      const html2pdf = html2pdfModule.default || html2pdfModule;
-
-      const subject = analysisData?.statistics?.subjectName || "تقرير-وثيق";
-      const safeFileName = String(subject).replace(/[\/:*?"<>|]/g, "-");
-
-      await html2pdf()
-        .set({
-          margin: 0.25,
-          filename: `${safeFileName}-تحليل-وثيق.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: {
-            scale: 2,
-            useCORS: true,
-            backgroundColor: "#0f172a",
-            scrollX: 0,
-            scrollY: 0,
-          },
-          jsPDF: {
-            unit: "in",
-            format: "a4",
-            orientation: "landscape",
-          },
-          pagebreak: { mode: ["avoid-all", "css", "legacy"] },
-        })
-        .from(element)
-        .save();
-    } catch (pdfError) {
-      console.warn("html2pdf failed, using browser print instead:", pdfError);
+    // نافذة الطباعة في المتصفح هي الأكثر ثباتًا وتعمل أكثر من مرة
+    // اختر منها: Save as PDF / حفظ بصيغة PDF
+    setTimeout(() => {
       window.print();
-    }
+    }, 100);
   } catch (err: any) {
     console.error("PDF Export Error:", err);
-    setErrorData(err?.message || "تعذر تصدير التقرير بصيغة PDF");
-  } finally {
-    buttons.forEach((btn: any) => {
-      btn.style.visibility = "";
-    });
-    setIsExporting(false);
+    setErrorData(err?.message || "تعذر فتح نافذة تصدير PDF");
   }
 };
-
 
 if (!isAuthenticated) {
   return (
@@ -164,9 +108,9 @@ if (!isAuthenticated) {
           </h1>
 
           <p className="text-slate-400 mb-8 text-sm leading-relaxed">
-            نظام التحليل الاستراتيجي التربوي الذكي
+            منصة خاصة للتحليل التربوي الذكي
             <br />
-            الرجاء إدخال كلمة المرور للوصول
+            بإشراف أ. سعود المعولي
           </p>
 
           <input
@@ -174,10 +118,20 @@ if (!isAuthenticated) {
             placeholder="أدخل كلمة المرور"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (password === APP_PASSWORD) {
+                  setIsAuthenticated(true);
+                } else {
+                  alert("كلمة المرور غير صحيحة");
+                }
+              }
+            }}
             className="w-full p-4 rounded-2xl bg-slate-800 border border-slate-600 text-white text-center outline-none focus:border-blue-400 transition-all mb-5"
           />
 
           <button
+            type="button"
             onClick={() => {
               if (password === APP_PASSWORD) {
                 setIsAuthenticated(true);
@@ -191,10 +145,8 @@ if (!isAuthenticated) {
           </button>
 
           <p className="text-xs text-slate-500 mt-6">
-  نظام خاص بإدارة وتحليل البيانات التربوية
-  <br />
-  تطوير وإشراف أ. سعود المعولي
-</p>
+            إصدار خاص • وثيق للتحليل الاستراتيجي التربوي
+          </p>
         </div>
       </div>
     </div>
@@ -231,12 +183,12 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
              <button
                 type="button"
                 onClick={(e) => exportReportPDF(e)}
-                disabled={isExporting}
+                disabled={false}
                 className="bg-emerald-500/20 border border-emerald-500/50 hover:bg-emerald-500 hover:text-white text-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed p-2 sm:px-4 sm:py-2 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg"
                 title="تصدير التقرير PDF"
              >
-                {isExporting ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Download className="w-4 h-4 sm:w-5 sm:h-5" />}
-                <span className="hidden sm:inline font-medium text-sm">{isExporting ? "جاري التصدير..." : "تصدير PDF"}</span>
+                <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="hidden sm:inline font-medium text-sm">تصدير PDF</span>
              </button>
              <button
                 type="button"
