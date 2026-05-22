@@ -26,6 +26,25 @@ const startAnalysis = async () => {
   setIsAnalyzing(true);
   setErrorData(null);
 
+  const cacheKey = `watheeq-analysis-v1:${selectedFiles
+    .map((file) => `${file.name}-${file.size}-${file.lastModified}`)
+    .join("|")}`;
+
+  try {
+    const cached = localStorage.getItem(cacheKey);
+    if (cached) {
+      const cachedData = JSON.parse(cached);
+      setAnalysisData(cachedData);
+      setShowResults(true);
+      setActiveSection("dashboard");
+      setOpenSectionTitle("لوحة وثيق");
+      setIsAnalyzing(false);
+      return;
+    }
+  } catch {
+    // تجاهل أخطاء الذاكرة المحلية واستكمال التحليل
+  }
+
   const formData = new FormData();
 
   selectedFiles.forEach((file) => {
@@ -46,8 +65,16 @@ const startAnalysis = async () => {
       );
     }
 
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify(data));
+    } catch {
+      // إذا امتلأت الذاكرة المحلية لا نوقف التحليل
+    }
+
     setAnalysisData(data);
     setShowResults(true);
+    setActiveSection("dashboard");
+    setOpenSectionTitle("لوحة وثيق");
   } catch (err: any) {
     console.error("Analysis Error:", err);
 
@@ -698,6 +725,13 @@ const exportReportPDF = (e?: React.MouseEvent<HTMLButtonElement>) => {
 
 const sectionCards = [
   {
+    id: "executive",
+    title: "الملخص التنفيذي",
+    icon: "📄",
+    description: "صفحة قرار سريعة للإدارة: أهم المؤشرات والفجوات والتوصية الكبرى.",
+    color: "from-slate-500/20 to-blue-500/10",
+  },
+  {
     id: "story",
     title: "قصة البيانات",
     icon: "📖",
@@ -1296,7 +1330,60 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               </div>
             )}
 
-            {activeSection !== "dashboard" && (
+            {activeSection === "executive" && (
+              <div id="section-executive" className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl">
+                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 mb-5">
+                  <h2 className="text-xl sm:text-2xl font-bold text-blue-300 flex items-center gap-2">📄 الملخص التنفيذي</h2>
+                  <span className="text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">جاهز للإدارة</span>
+                </div>
+
+                {analysisData?.analysisMode === "comparison" && analysisData?.comparison?.executiveSummary && (
+                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5">
+                    <p className="text-xs font-bold text-blue-300 mb-2">ملخص المقارنة</p>
+                    <p className="text-sm leading-loose text-slate-200">{analysisData.comparison.executiveSummary}</p>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
+                    <p className="text-xs text-slate-400 mb-2">نسبة الإتقان</p>
+                    <p className="text-3xl font-bold text-emerald-400">{analysisData?.statistics?.masteryRate ? `${analysisData.statistics.masteryRate}%` : "—"}</p>
+                  </div>
+                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
+                    <p className="text-xs text-slate-400 mb-2">المتوسط الحسابي</p>
+                    <p className="text-3xl font-bold text-blue-300">{analysisData?.statistics?.mean || "—"}</p>
+                  </div>
+                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
+                    <p className="text-xs text-slate-400 mb-2">العينة / المستهدفون</p>
+                    <p className="text-3xl font-bold text-purple-300">{analysisData?.statistics?.studentCount || "—"}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4">
+                    <h3 className="text-sm font-bold text-emerald-300 mb-3">أبرز نقاط القوة</h3>
+                    <ul className="text-sm text-slate-300 leading-relaxed list-disc list-inside space-y-2">
+                      {(analysisData?.qualitative?.strengths || []).slice(0, 3).map((item: string, i: number) => <li key={i}>{item}</li>)}
+                    </ul>
+                  </div>
+                  <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4">
+                    <h3 className="text-sm font-bold text-rose-300 mb-3">أبرز الفجوات</h3>
+                    <ul className="text-sm text-slate-300 leading-relaxed list-disc list-inside space-y-2">
+                      {(analysisData?.qualitative?.gaps || []).slice(0, 3).map((item: string, i: number) => <li key={i}>{item}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                {analysisData?.strategicAdvice && (
+                  <div className="mt-5 bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4">
+                    <p className="text-sm font-bold text-amber-300 mb-2">التوصية الاستراتيجية الكبرى</p>
+                    <p className="text-sm leading-loose text-slate-200">{analysisData.strategicAdvice}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection !== "dashboard" && activeSection !== "executive" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             {/* Column Right (or Left in RTL, spans 3/12 in wide, full in mobile) */}
             <div className={`flex flex-col gap-4 sm:gap-6 ${["stats","qualitative"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
