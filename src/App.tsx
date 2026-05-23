@@ -781,22 +781,71 @@ const backToDashboard = () => {
 const isSectionOpen = (id: string) => activeSection === id;
 
 const getChartDistribution = () => {
-  const distribution = analysisData?.charts?.gradeDistribution || [];
-  if (distribution.length > 0) return distribution;
+  const rawDistribution = analysisData?.charts?.gradeDistribution || [];
 
-  const stats = analysisData?.statistics || {};
-  const fallback = [];
+  const normalized = rawDistribution
+    .map((item: any, index: number) => {
+      const label =
+        item.label ||
+        item.level ||
+        item.name ||
+        item.category ||
+        item.grade ||
+        `مستوى ${index + 1}`;
 
-  if (stats.masteryRate !== undefined && Number(stats.masteryRate) > 0) {
-    fallback.push({ label: "الإتقان", value: Number(stats.masteryRate) });
-    fallback.push({ label: "بحاجة دعم", value: Math.max(0, 100 - Number(stats.masteryRate)) });
+      const rawValue =
+        item.value ??
+        item.percentage ??
+        item.percent ??
+        item.rate ??
+        item.count ??
+        0;
+
+      const numericValue =
+        typeof rawValue === "string"
+          ? Number(rawValue.replace("%", "").trim())
+          : Number(rawValue);
+
+      return {
+        label,
+        value: Number.isFinite(numericValue) ? numericValue : 0,
+      };
+    })
+    .filter((item: any) => item.value > 0);
+
+  if (normalized.length > 0) {
+    return normalized;
   }
 
-  return fallback;
+  const masteryRate = Number(analysisData?.statistics?.masteryRate || 0);
+  if (masteryRate > 0 && masteryRate <= 100) {
+    return [
+      { label: "الإتقان", value: masteryRate },
+      { label: "بحاجة دعم", value: Math.max(0, 100 - masteryRate) },
+    ].filter((item) => item.value > 0);
+  }
+
+  return [];
+};
+
+const hasChartData = () => getChartDistribution().length > 0;
+
+const getDominantLevel = () => {
+  const data = getChartDistribution();
+  if (!data.length) return "—";
+
+  return data.reduce((max: any, item: any) =>
+    Number(item.value) > Number(max.value) ? item : max
+  ).label;
 };
 
 const exportChartPNG = () => {
   const chart = document.getElementById("visual-chart-area");
+  if (!hasChartData()) {
+    setErrorData("لا توجد بيانات رقمية كافية لتصدير رسم بياني");
+    return;
+  }
+
   if (!chart) {
     setErrorData("لم يتم العثور على الرسم البياني للتصدير");
     return;
@@ -1532,33 +1581,59 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {getChartDistribution().length > 0 ? (
-                      getChartDistribution().map((item: any, i: number) => {
-                        const label = item.label || item.level || `مستوى ${i + 1}`;
-                        const value = Number(item.value || item.percentage || 0);
-                        const safeValue = Math.max(0, Math.min(100, value));
-                        return (
-                          <div key={i} className="grid grid-cols-[90px_1fr_52px] gap-3 items-center">
-                            <div className="text-sm font-bold text-slate-300 truncate">{label}</div>
-                            <div className="h-7 bg-slate-800 rounded-full overflow-hidden border border-white/10 relative">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${safeValue}%` }}
-                                transition={{ duration: 0.9, delay: i * 0.08 }}
-                                className="h-full bg-gradient-to-l from-cyan-400 to-blue-500 rounded-full"
-                              />
-                            </div>
-                            <div className="text-left text-sm font-bold text-cyan-300">{safeValue}%</div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center text-slate-400 py-8 border border-dashed border-white/10 rounded-2xl">
-                        لا توجد بيانات رقمية كافية لإنشاء الرسم البياني.
+                  {hasChartData() ? (
+                    <>
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-6">
+                        <div className="bg-cyan-500/10 border border-cyan-500/20 rounded-2xl p-3">
+                          <p className="text-[10px] text-slate-400 mb-1">عدد المؤشرات</p>
+                          <p className="text-lg font-bold text-cyan-300">{getChartDistribution().length}</p>
+                        </div>
+                        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3">
+                          <p className="text-[10px] text-slate-400 mb-1">المستوى الغالب</p>
+                          <p className="text-lg font-bold text-emerald-300">{getDominantLevel()}</p>
+                        </div>
+                        <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3">
+                          <p className="text-[10px] text-slate-400 mb-1">الإتقان</p>
+                          <p className="text-lg font-bold text-blue-300">{analysisData?.statistics?.masteryRate || "—"}%</p>
+                        </div>
+                        <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-3">
+                          <p className="text-[10px] text-slate-400 mb-1">المتوسط</p>
+                          <p className="text-lg font-bold text-purple-300">{analysisData?.statistics?.mean || "—"}</p>
+                        </div>
                       </div>
-                    )}
-                  </div>
+
+                      <div className="space-y-4">
+                        {getChartDistribution().map((item: any, i: number) => {
+                          const safeValue = Math.max(0, Math.min(100, Number(item.value || 0)));
+                          return (
+                            <div key={i} className="grid grid-cols-[90px_1fr_52px] gap-3 items-center">
+                              <div className="text-sm font-bold text-slate-300 truncate">{item.label}</div>
+                              <div className="h-8 bg-slate-800 rounded-full overflow-hidden border border-white/10 relative">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${safeValue}%` }}
+                                  transition={{ duration: 0.9, delay: i * 0.08 }}
+                                  className="h-full bg-gradient-to-l from-cyan-400 to-blue-500 rounded-full"
+                                />
+                              </div>
+                              <div className="text-left text-sm font-bold text-cyan-300">{safeValue}%</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-center py-12 border border-dashed border-white/10 rounded-3xl bg-white/5">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-slate-800 border border-white/10 flex items-center justify-center text-3xl">
+                        📊
+                      </div>
+                      <h3 className="text-lg font-bold text-white mb-2">لا تتوفر بيانات رقمية كافية للرسم البياني</h3>
+                      <p className="text-sm text-slate-400 max-w-xl mx-auto leading-relaxed">
+                        يبدو أن هذا التحليل يعتمد على بيانات وصفية أو تقرير إشرافي لا يحتوي على نسب ومستويات رقمية واضحة.
+                        يمكنك الاعتماد على أقسام السرد التربوي، التحليل النوعي، SWOT، وإيشيكاوا لهذا النوع من التقارير.
+                      </p>
+                    </div>
+                  )}
 
                   {analysisData?.comparison?.comparisonTable?.length > 0 && (
                     <div className="mt-8 pt-5 border-t border-white/10">
