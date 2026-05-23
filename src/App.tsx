@@ -26,25 +26,6 @@ const startAnalysis = async () => {
   setIsAnalyzing(true);
   setErrorData(null);
 
-  const cacheKey = `watheeq-analysis-v1:${selectedFiles
-    .map((file) => `${file.name}-${file.size}-${file.lastModified}`)
-    .join("|")}`;
-
-  try {
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const cachedData = JSON.parse(cached);
-      setAnalysisData(cachedData);
-      setShowResults(true);
-      setActiveSection("dashboard");
-      setOpenSectionTitle("لوحة وثيق");
-      setIsAnalyzing(false);
-      return;
-    }
-  } catch {
-    // تجاهل أخطاء الذاكرة المحلية واستكمال التحليل
-  }
-
   const formData = new FormData();
 
   selectedFiles.forEach((file) => {
@@ -65,16 +46,8 @@ const startAnalysis = async () => {
       );
     }
 
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(data));
-    } catch {
-      // إذا امتلأت الذاكرة المحلية لا نوقف التحليل
-    }
-
     setAnalysisData(data);
     setShowResults(true);
-    setActiveSection("dashboard");
-    setOpenSectionTitle("لوحة وثيق");
   } catch (err: any) {
     console.error("Analysis Error:", err);
 
@@ -725,13 +698,6 @@ const exportReportPDF = (e?: React.MouseEvent<HTMLButtonElement>) => {
 
 const sectionCards = [
   {
-    id: "executive",
-    title: "الملخص التنفيذي",
-    icon: "📄",
-    description: "صفحة قرار سريعة للإدارة: أهم المؤشرات والفجوات والتوصية الكبرى.",
-    color: "from-slate-500/20 to-blue-500/10",
-  },
-  {
     id: "story",
     title: "قصة البيانات",
     icon: "📖",
@@ -744,6 +710,13 @@ const sectionCards = [
     icon: "📊",
     description: "لوحة المؤشرات، الإتقان، المتوسط، وتوزيع مستويات الأداء.",
     color: "from-emerald-500/20 to-blue-500/10",
+  },
+  {
+    id: "visuals",
+    title: "التصورات البيانية",
+    icon: "📈",
+    description: "رسم أعمدة احترافي للمؤشرات وتوزيع مستويات الأداء.",
+    color: "from-cyan-500/20 to-blue-500/10",
   },
   {
     id: "qualitative",
@@ -806,6 +779,49 @@ const backToDashboard = () => {
 };
 
 const isSectionOpen = (id: string) => activeSection === id;
+
+const getChartDistribution = () => {
+  const distribution = analysisData?.charts?.gradeDistribution || [];
+  if (distribution.length > 0) return distribution;
+
+  const stats = analysisData?.statistics || {};
+  const fallback = [];
+
+  if (stats.masteryRate !== undefined && Number(stats.masteryRate) > 0) {
+    fallback.push({ label: "الإتقان", value: Number(stats.masteryRate) });
+    fallback.push({ label: "بحاجة دعم", value: Math.max(0, 100 - Number(stats.masteryRate)) });
+  }
+
+  return fallback;
+};
+
+const exportChartPNG = () => {
+  const chart = document.getElementById("visual-chart-area");
+  if (!chart) {
+    setErrorData("لم يتم العثور على الرسم البياني للتصدير");
+    return;
+  }
+
+  import("dom-to-image-more")
+    .then((module: any) => {
+      const domtoimage = module.default || module;
+      return domtoimage.toPng(chart, {
+        bgcolor: "#0f172a",
+        quality: 1,
+        cacheBust: true,
+      });
+    })
+    .then((dataUrl: string) => {
+      const link = document.createElement("a");
+      link.download = "watheeq-chart.png";
+      link.href = dataUrl;
+      link.click();
+    })
+    .catch((err: any) => {
+      console.error("Chart PNG Export Error:", err);
+      setErrorData("تعذر تصدير الرسم البياني كصورة");
+    });
+};
 
 const exportSectionPDF = (id: string, title: string) => {
   try {
@@ -1330,60 +1346,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
               </div>
             )}
 
-            {activeSection === "executive" && (
-              <div id="section-executive" className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-5 sm:p-7 shadow-2xl">
-                <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 mb-5">
-                  <h2 className="text-xl sm:text-2xl font-bold text-blue-300 flex items-center gap-2">📄 الملخص التنفيذي</h2>
-                  <span className="text-[10px] text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1 rounded-full">جاهز للإدارة</span>
-                </div>
-
-                {analysisData?.analysisMode === "comparison" && analysisData?.comparison?.executiveSummary && (
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-5">
-                    <p className="text-xs font-bold text-blue-300 mb-2">ملخص المقارنة</p>
-                    <p className="text-sm leading-loose text-slate-200">{analysisData.comparison.executiveSummary}</p>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
-                    <p className="text-xs text-slate-400 mb-2">نسبة الإتقان</p>
-                    <p className="text-3xl font-bold text-emerald-400">{analysisData?.statistics?.masteryRate ? `${analysisData.statistics.masteryRate}%` : "—"}</p>
-                  </div>
-                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
-                    <p className="text-xs text-slate-400 mb-2">المتوسط الحسابي</p>
-                    <p className="text-3xl font-bold text-blue-300">{analysisData?.statistics?.mean || "—"}</p>
-                  </div>
-                  <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-4">
-                    <p className="text-xs text-slate-400 mb-2">العينة / المستهدفون</p>
-                    <p className="text-3xl font-bold text-purple-300">{analysisData?.statistics?.studentCount || "—"}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4">
-                    <h3 className="text-sm font-bold text-emerald-300 mb-3">أبرز نقاط القوة</h3>
-                    <ul className="text-sm text-slate-300 leading-relaxed list-disc list-inside space-y-2">
-                      {(analysisData?.qualitative?.strengths || []).slice(0, 3).map((item: string, i: number) => <li key={i}>{item}</li>)}
-                    </ul>
-                  </div>
-                  <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4">
-                    <h3 className="text-sm font-bold text-rose-300 mb-3">أبرز الفجوات</h3>
-                    <ul className="text-sm text-slate-300 leading-relaxed list-disc list-inside space-y-2">
-                      {(analysisData?.qualitative?.gaps || []).slice(0, 3).map((item: string, i: number) => <li key={i}>{item}</li>)}
-                    </ul>
-                  </div>
-                </div>
-
-                {analysisData?.strategicAdvice && (
-                  <div className="mt-5 bg-amber-400/10 border border-amber-400/20 rounded-2xl p-4">
-                    <p className="text-sm font-bold text-amber-300 mb-2">التوصية الاستراتيجية الكبرى</p>
-                    <p className="text-sm leading-loose text-slate-200">{analysisData.strategicAdvice}</p>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {activeSection !== "dashboard" && activeSection !== "executive" && (
+            {activeSection !== "dashboard" && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
             {/* Column Right (or Left in RTL, spans 3/12 in wide, full in mobile) */}
             <div className={`flex flex-col gap-4 sm:gap-6 ${["stats","qualitative"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
@@ -1492,7 +1455,7 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
             </div>
 
             {/* Center / Wide Column */}
-            <div className={`flex flex-col gap-4 sm:gap-6 ${["story","swot","pareto"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
+            <div className={`flex flex-col gap-4 sm:gap-6 ${["story","visuals","swot","pareto"].includes(activeSection) ? "lg:col-span-12" : "hidden"}`}>
               {/* Data Story */}
               <div id="section-story" className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-7 flex-1 shadow-lg ${!isSectionOpen("story") ? "hidden" : ""}`}>
                 <h2 className="text-base sm:text-lg font-bold mb-5 flex items-center gap-2 text-white">
@@ -1525,6 +1488,100 @@ return (<div className="min-h-screen w-full bg-slate-900 text-slate-100 flex fle
                   )}
                 </div>
               </div>
+
+
+              {/* Visual Charts */}
+              <div id="section-visuals" className={`bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 sm:p-7 shadow-lg ${!isSectionOpen("visuals") ? "hidden" : ""}`}>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5 border-b border-white/10 pb-4">
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold flex items-center gap-2 text-white">
+                      <span className="text-xl sm:text-2xl">📈</span> التصورات البيانية
+                    </h2>
+                    <p className="text-xs text-slate-400 mt-1">رسم أعمدة احترافي يوضح المؤشرات وتوزيع مستويات الأداء.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={exportChartPNG}
+                    className="bg-cyan-500/20 border border-cyan-500/40 hover:bg-cyan-500 hover:text-white text-cyan-300 px-4 py-2 rounded-xl text-xs font-bold transition-all"
+                  >
+                    تصدير الرسم PNG
+                  </button>
+                </div>
+
+                <div id="visual-chart-area" className="bg-slate-950/40 border border-white/10 rounded-3xl p-5 sm:p-7">
+                  <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-6">
+                    <div>
+                      <p className="text-xs text-cyan-300 font-bold mb-1">مؤشرات وثيق المرئية</p>
+                      <h3 className="text-xl sm:text-2xl font-bold text-white">
+                        توزيع مستويات الأداء والمؤشرات
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-3">
+                        <p className="text-[10px] text-slate-400 mb-1">الإتقان</p>
+                        <p className="text-lg font-bold text-blue-300">{analysisData?.statistics?.masteryRate || "—"}%</p>
+                      </div>
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3">
+                        <p className="text-[10px] text-slate-400 mb-1">العينة</p>
+                        <p className="text-lg font-bold text-emerald-300">{analysisData?.statistics?.studentCount || "—"}</p>
+                      </div>
+                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-3">
+                        <p className="text-[10px] text-slate-400 mb-1">المتوسط</p>
+                        <p className="text-lg font-bold text-purple-300">{analysisData?.statistics?.mean || "—"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {getChartDistribution().length > 0 ? (
+                      getChartDistribution().map((item: any, i: number) => {
+                        const label = item.label || item.level || `مستوى ${i + 1}`;
+                        const value = Number(item.value || item.percentage || 0);
+                        const safeValue = Math.max(0, Math.min(100, value));
+                        return (
+                          <div key={i} className="grid grid-cols-[90px_1fr_52px] gap-3 items-center">
+                            <div className="text-sm font-bold text-slate-300 truncate">{label}</div>
+                            <div className="h-7 bg-slate-800 rounded-full overflow-hidden border border-white/10 relative">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${safeValue}%` }}
+                                transition={{ duration: 0.9, delay: i * 0.08 }}
+                                className="h-full bg-gradient-to-l from-cyan-400 to-blue-500 rounded-full"
+                              />
+                            </div>
+                            <div className="text-left text-sm font-bold text-cyan-300">{safeValue}%</div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center text-slate-400 py-8 border border-dashed border-white/10 rounded-2xl">
+                        لا توجد بيانات رقمية كافية لإنشاء الرسم البياني.
+                      </div>
+                    )}
+                  </div>
+
+                  {analysisData?.comparison?.comparisonTable?.length > 0 && (
+                    <div className="mt-8 pt-5 border-t border-white/10">
+                      <h3 className="text-base font-bold text-white mb-4">ملخص مقارنة بصري</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {(analysisData.comparison.improvements || []).slice(0, 4).map((item: string, i: number) => (
+                          <div key={`imp-${i}`} className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+                            <p className="text-xs text-emerald-300 font-bold mb-1">مؤشر تحسن</p>
+                            <p className="text-sm text-slate-200 leading-relaxed">{item}</p>
+                          </div>
+                        ))}
+                        {(analysisData.comparison.declines || []).slice(0, 4).map((item: string, i: number) => (
+                          <div key={`dec-${i}`} className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4">
+                            <p className="text-xs text-rose-300 font-bold mb-1">مؤشر تراجع</p>
+                            <p className="text-sm text-slate-200 leading-relaxed">{item}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
 
               {/* SWOT Matrix */}
               <div id="section-swot" className={`bg-blue-600/10 backdrop-blur-md border border-blue-500/30 rounded-2xl p-5 shadow-lg bg-gradient-to-br from-blue-900/20 to-slate-900/50 ${!isSectionOpen("swot") ? "hidden" : ""}`}>
