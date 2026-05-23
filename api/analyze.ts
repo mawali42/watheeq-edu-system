@@ -1,5 +1,6 @@
 import multer from "multer";
 import { GoogleGenAI } from "@google/genai";
+import * as XLSX from "xlsx";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -29,6 +30,101 @@ function cleanJsonText(text: string) {
     .trim();
 }
 
+function isExcelFile(file: any) {
+  return (
+    file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.mimetype === "application/vnd.ms-excel" ||
+    file.originalname?.toLowerCase().endsWith(".xlsx") ||
+    file.originalname?.toLowerCase().endsWith(".xls")
+  );
+}
+
+function isTextFile(file: any) {
+  return (
+    file.mimetype?.startsWith("text/") ||
+    file.originalname?.toLowerCase().endsWith(".csv") ||
+    file.originalname?.toLowerCase().endsWith(".txt")
+  );
+}
+
+function excelToText(file: any) {
+  const workbook = XLSX.read(file.buffer, { type: "buffer" });
+
+  const sheetsText = workbook.SheetNames.map((sheetName) => {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+      header: 1,
+      defval: "",
+      blankrows: false,
+    }) as any[][];
+
+    const limitedRows = rows.slice(0, 250); // حماية من الملفات الضخمة
+    const csvLike = limitedRows
+      .map((row) => row.map((cell) => String(cell ?? "").trim()).join(" | "))
+      .join("\n");
+
+    return `ورقة العمل: ${sheetName}\n${csvLike}`;
+  }).join("\n\n---\n\n");
+
+  return sheetsText.slice(0, 60000); // تقليل الاستهلاك
+}
+
+function textFileToText(file: any) {
+  return file.buffer.toString("utf8").slice(0, 60000);
+}
+
+function fallbackFileNote(file: any) {
+  return `تم رفع ملف باسم ${file.originalname} من نوع ${file.mimetype}. إذا كان الملف صورة أو PDF فسيتم إرساله مباشرة كنص/بيانات للذكاء الاصطناعي.`;
+}
+
+function buildFileParts(files: any[]) {
+  return files.flatMap((file: any, index: number) => {
+    const fileHeader = `
+[الملف ${index + 1}]
+اسم الملف: ${file.originalname}
+نوع الملف: ${file.mimetype}
+المطلوب: اقرأ هذا الملف باعتباره ${files.length === 2 ? "طرفًا في المقارنة" : "مصدرًا من مصادر التحليل"}.
+`;
+
+    if (isExcelFile(file)) {
+      const excelText = excelToText(file);
+      return [
+        {
+          text: `${fileHeader}
+
+محتوى ملف Excel محوّل إلى نص منظم:
+${excelText}
+`,
+        },
+      ];
+    }
+
+    if (isTextFile(file)) {
+      const textContent = textFileToText(file);
+      return [
+        {
+          text: `${fileHeader}
+
+محتوى الملف النصي:
+${textContent}
+`,
+        },
+      ];
+    }
+
+    // PDF والصور غالبًا مدعومة مباشرة من Gemini عبر inlineData
+    return [
+      { text: fileHeader },
+      {
+        inlineData: {
+          mimeType: file.mimetype || "application/octet-stream",
+          data: file.buffer.toString("base64"),
+        },
+      },
+    ];
+  });
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     return res.status(405).json({
@@ -53,7 +149,6 @@ export default async function handler(req: any, res: any) {
       });
     }
 
-    // حدود حماية لتقليل استهلاك الرصيد
     if (files.length > 3) {
       return res.status(400).json({
         error: "الحد الأقصى 3 ملفات في كل عملية تحليل حفاظًا على سرعة التحليل واستهلاك الرصيد",
@@ -73,22 +168,7 @@ export default async function handler(req: any, res: any) {
       apiKey: process.env.GEMINI_API_KEY,
     });
 
-    const fileParts = files.flatMap((file: any, index: number) => [
-      {
-        text: `
-[الملف ${index + 1}]
-اسم الملف: ${file.originalname}
-نوع الملف: ${file.mimetype}
-المطلوب: اقرأ هذا الملف باعتباره ${files.length === 2 ? `طرفًا في المقارنة` : `مصدرًا من مصادر التحليل`}.
-`,
-      },
-      {
-        inlineData: {
-          mimeType: file.mimetype,
-          data: file.buffer.toString("base64"),
-        },
-      },
-    ]);
+    const fileParts = buildFileParts(files);
 
     const baseJsonShape = `
 أعد JSON فقط دون Markdown ودون أي شرح خارج JSON، وبنفس هذا الشكل:
@@ -188,6 +268,7 @@ ${baseJsonShape}
 - analysisMode يجب أن تكون "comparison".
 - fileOneTitle و fileTwoTitle يجب أن يكونا واضحين من أسماء الملفات أو محتواها.
 - إذا لم تجد أرقامًا دقيقة، لا تخترع أرقامًا، واكتب قراءة وصفية.
+- إذا كان الملف Excel فاستخرج المؤشرات من الجداول قدر الإمكان.
 - اجعل اللغة عربية فصحى تربوية واضحة.
 `;
 
@@ -204,6 +285,7 @@ ${baseJsonShape}
 3. تحديد نقاط القوة والفجوات.
 4. إنتاج SWOT وإيشيكاوا وشجرة المشكلات وباريتو.
 5. تقديم توصيات وخطة علاجية عملية.
+6. إذا كان الملف Excel فاستخرج منه الجداول والمؤشرات والنسب قدر الإمكان.
 
 ${baseJsonShape}
 
@@ -218,7 +300,6 @@ ${baseJsonShape}
     const prompt = files.length === 2 ? comparisonPrompt : mergedPrompt;
 
     const response = await ai.models.generateContent({
-      // إن ظهر أن هذا الموديل غير متاح في حسابك، استبدله بـ gemini-2.5-flash
       model: "gemini-2.5-flash",
       contents: [
         {
